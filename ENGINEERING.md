@@ -2,7 +2,7 @@
 
 ## Scope
 
-This repository contains a single Go CLI that converts an exported AI chat JSON file into:
+This repository contains a single Go CLI, `AIProJsonMD`, that converts an exported AI chat JSON file into:
 
 - one Markdown file per conversation
 - one output subfolder per export folder name, plus `Unfiled` for chats without a mapped folder
@@ -13,7 +13,7 @@ The implementation currently lives entirely in `main.go`.
 ## Build And Run
 
 ```bash
-go build
+go build -o AIProJsonMD
 go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
 go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown -overwrite
 ```

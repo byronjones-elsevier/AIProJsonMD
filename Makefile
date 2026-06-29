@@ -1,4 +1,4 @@
-APP_NAME := aichatjsonmd
+APP_NAME := AIProJsonMD
 GO := go
 OUT_DIR ?= out_markdown
 ASSETS_DIR ?= assets

@@ -1,3 +1,3 @@
-module aichatjsonmd
+module AIProJsonMD
 
 go 1.22

@@ -1,7 +1,7 @@
 .DS_Store
 
 # Build artifacts
-aichatjsonmd
+AIProJsonMD
 
 # Generated output
 out_markdown/

@@ -1,6 +1,6 @@
-# AIChatJsonMD
+# AIProJsonMD
 
-`AIChatJsonMD` is a small Go command-line tool that converts an AI chat export JSON file into a set of Markdown files, grouped by export folder, with attachments written into a local `assets` directory inside each output folder.
+`AIProJsonMD` is a small Go command-line tool that converts an AI chat export JSON file into a set of Markdown files, grouped by export folder, with attachments written into a local `assets` directory inside each output folder.
 
 ## What It Does
 
@@ -21,10 +21,10 @@
 ## Build
 
 ```bash
-go build
+go build -o AIProJsonMD
 ```
 
-This produces a local executable named `aichatjsonmd` in the project root.
+This produces a local executable named `AIProJsonMD` in the project root.
 
 ## Run
 
@@ -35,7 +35,7 @@ go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
 Or run the built binary:
 
 ```bash
-./aichatjsonmd -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
+./AIProJsonMD -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
 ```
 
 ## Flags
