@@ -47,7 +47,7 @@ Or run the built binary:
 
 ## Expected Input Shape
 
-The program expects a JSON document with this general structure:
+The program expects an "AI Pro Export" JSON document with this general structure:
 
 ```json
 {
