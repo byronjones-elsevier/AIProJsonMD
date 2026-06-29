@@ -1,0 +1,8 @@
+.DS_Store
+
+# Build artifacts
+aichatjsonmd
+
+# Generated output
+out_markdown/
+out_assets/
