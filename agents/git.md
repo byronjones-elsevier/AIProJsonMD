@@ -8,7 +8,7 @@ Load this file for repository, branch, commit, or pull request work.
 - If no repository exists, ask whether to initialize one. If approved, add a
   suitable `.gitignore` and commit the existing files.
 - Keep standard project documentation current, including `README.md` and
-  `AGENTS.md` when they exist.
+  `Agents.md` when they exist.
 
 ## Changes and Branches
 
