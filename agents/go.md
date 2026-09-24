@@ -33,8 +33,8 @@ root `Agents.md`.
 
 - Table-driven tests are the default (`t.Run` subtests with a slice of test
   cases).
-- Use `testify/assert` and `testify/require`; `require` for fatal assertions,
-  `assert` for non-fatal.
+- Use the standard library's `testing` package and explicit assertions, matching
+  the existing test suite.
 - Test files live alongside source (`_test.go`). Integration tests use
   `//go:build integration`.
 - Mock interfaces, not concrete types. Prefer `testify/mock` or hand-rolled fakes.
