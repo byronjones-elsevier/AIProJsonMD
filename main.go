@@ -304,6 +304,42 @@ func defaultConversationFolder(outDir string) string {
 	return filepath.Join(outDir, "Unfiled")
 }
 
+// conversationMarkdownPath returns the markdown path for a conversation, preferring its name when available.
+func conversationMarkdownPath(folderDir string, c Conversation, index int, usedNames map[string]int) string {
+	baseName := sanitizeFilename(c.Name)
+	if baseName == "" {
+		id := strings.TrimSpace(c.ID)
+		baseName = fmt.Sprintf("%s_%d", shortHashFromString(id, 10), index+1)
+	}
+
+	if ext := filepath.Ext(baseName); strings.EqualFold(ext, ".md") {
+		baseName = strings.TrimSuffix(baseName, ext)
+	}
+	if baseName == "" {
+		baseName = fmt.Sprintf("conversation_%d", index+1)
+	}
+
+keyPrefix := folderDir + "\x00"
+	key := keyPrefix + strings.ToLower(baseName)
+	count := usedNames[key] + 1
+	for {
+		candidate := baseName
+		if count > 1 {
+			candidate = fmt.Sprintf("%s_%d", baseName, count)
+		}
+		candidateKey := keyPrefix + strings.ToLower(candidate)
+		if _, exists := usedNames[candidateKey]; !exists {
+			usedNames[key] = count
+			usedNames[candidateKey] = 1
+			baseName = candidate
+			break
+		}
+		count++
+	}
+
+	return filepath.Join(folderDir, baseName+".md")
+}
+
 // main is the entry point of the program. It processes command-line flags, reads the input JSON file, and generates markdown files for each conversation along with their attachments.
 func main() {
 
@@ -359,9 +395,9 @@ func main() {
 	}
 
 	// Process each conversation in the history
+	usedMarkdownNames := make(map[string]int, len(export.History))
 	for i, c := range export.History {
 		id := strings.TrimSpace(c.ID)
-		hash := shortHashFromString(id, 10)
 		fileRefs := collectConversationFiles(c)
 		folderDir := defaultConversationFolder(*outDir)
 		if folderPath, ok := folderPaths[folderIDString(c.FolderID)]; ok {
@@ -381,7 +417,7 @@ func main() {
 		}
 
 		// Construct the markdown file path for the conversation
-		mdPath := filepath.Join(folderDir, fmt.Sprintf("%s_%d.md", hash, i+1))
+		mdPath := conversationMarkdownPath(folderDir, c, i, usedMarkdownNames)
 
 		// Build the markdown content for the conversation
 		var b strings.Builder

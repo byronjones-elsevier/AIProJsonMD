@@ -76,3 +76,51 @@ func TestDecodeBase64Payload_RawBase64(t *testing.T) {
 		t.Fatalf("expected hello, got %q", string(decoded))
 	}
 }
+
+func TestConversationMarkdownPath_UsesSanitizedName(t *testing.T) {
+	usedNames := map[string]int{}
+	path := conversationMarkdownPath("out", Conversation{Name: `My / Chat: Notes? v1.2`}, 0, usedNames)
+
+	want := filepath.Join("out", "My _ Chat_ Notes_ v1.2.md")
+	if path != want {
+		t.Fatalf("expected %q, got %q", want, path)
+	}
+}
+
+func TestConversationMarkdownPath_DoesNotDuplicateMarkdownExtension(t *testing.T) {
+	usedNames := map[string]int{}
+	path := conversationMarkdownPath("out", Conversation{Name: "Already Markdown.md"}, 0, usedNames)
+
+	want := filepath.Join("out", "Already Markdown.md")
+	if path != want {
+		t.Fatalf("expected %q, got %q", want, path)
+	}
+}
+
+func TestConversationMarkdownPath_FallsBackToHashForBlankName(t *testing.T) {
+	usedNames := map[string]int{}
+	c := Conversation{ID: "conversation-id"}
+	path := conversationMarkdownPath("out", c, 2, usedNames)
+
+	want := filepath.Join("out", shortHashFromString(c.ID, 10)+"_3.md")
+	if path != want {
+		t.Fatalf("expected %q, got %q", want, path)
+	}
+}
+
+func TestConversationMarkdownPath_DeduplicatesNamesPerFolder(t *testing.T) {
+	usedNames := map[string]int{}
+	first := conversationMarkdownPath("out", Conversation{Name: "Same Name"}, 0, usedNames)
+	second := conversationMarkdownPath("out", Conversation{Name: "Same Name"}, 1, usedNames)
+	third := conversationMarkdownPath(filepath.Join("out", "Nested"), Conversation{Name: "Same Name"}, 2, usedNames)
+
+	if first != filepath.Join("out", "Same Name.md") {
+		t.Fatalf("expected first name-based path, got %q", first)
+	}
+	if second != filepath.Join("out", "Same Name_2.md") {
+		t.Fatalf("expected duplicate suffix, got %q", second)
+	}
+	if third != filepath.Join("out", "Nested", "Same Name.md") {
+		t.Fatalf("expected folder-local naming, got %q", third)
+	}
+}
