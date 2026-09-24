@@ -319,13 +319,22 @@ func conversationMarkdownPath(folderDir string, c Conversation, index int, usedN
 		baseName = fmt.Sprintf("conversation_%d", index+1)
 	}
 
-	key := folderDir + "\x00" + strings.ToLower(baseName)
-	if count, ok := usedNames[key]; ok {
+keyPrefix := folderDir + "\x00"
+	key := keyPrefix + strings.ToLower(baseName)
+	count := usedNames[key] + 1
+	for {
+		candidate := baseName
+		if count > 1 {
+			candidate = fmt.Sprintf("%s_%d", baseName, count)
+		}
+		candidateKey := keyPrefix + strings.ToLower(candidate)
+		if _, exists := usedNames[candidateKey]; !exists {
+			usedNames[key] = count
+			usedNames[candidateKey] = 1
+			baseName = candidate
+			break
+		}
 		count++
-		usedNames[key] = count
-		baseName = fmt.Sprintf("%s_%d", baseName, count)
-	} else {
-		usedNames[key] = 1
 	}
 
 	return filepath.Join(folderDir, baseName+".md")
