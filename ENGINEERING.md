@@ -178,9 +178,9 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
 
 - `gofmt -l .` reports nothing.
 - `go vet ./...` is clean.
-- `golangci-lint run ./...` reports 0 issues (default linters).
-- `go test -race -cover ./...` passes with 88.8% statement coverage (89.7% on
-  Go 1.27.1; the difference is the toolchain's instrumentation, not the tests).
+- `golangci-lint run ./...` reports 0 issues (standard linters plus
+  `errorlint`, `gosec`, `misspell`, `revive`, `unconvert`).
+- `go test -race -cover ./...` passes with 90.2% statement coverage.
 - `make help`, `make all`, `make test/cover`, `make clean`, and the `make run`
   guard without `IN` behave as documented.
 - `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
@@ -197,8 +197,8 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   -6613, -6617) in `net/http` server and HTTP/2 code. The tool only calls
   `http.DetectContentType` and never starts an HTTP server or client, so those
   traces went through `init` and `io.Writer` dispatch rather than real HTTP
-  use. Upgrading the toolchain cleared them. There are no third-party
-  dependencies.
+  use. Upgrading the toolchain cleared them. The scan was repeated after adding
+  goldmark and still reports no vulnerabilities.
 - Output of the pre-refactor build (from `main`) and the refactored build,
   both run on a real export of 40 conversations and diffed. The file trees
   matched (47 files each). One Markdown file differed: three attachment links
@@ -209,8 +209,28 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   were byte-identical. The longest file name was 42 bytes in both, so the
   200-byte cap did not trigger. The only difference was permissions: every file
   went from `0644` to `0600`, and every directory from `0754` to `0700`.
+- `main` before HTML export (`796b2bc`) versus the HTML build, run on the same
+  real export (`-format both` for the new build). Markdown content and
+  attachments were byte-identical in all 47 files. Five Markdown files were
+  renamed: conversation names that ended in a space (truncated chat titles
+  such as "Please review this confluence") lost the trailing space, which
+  Windows does not allow. The content of all five was identical. This comes
+  from the Windows-name change, not from HTML; re-running into an existing
+  output directory without `-overwrite` leaves the old and the new name side by
+  side.
+- Generated HTML on the real export: 40 conversation pages plus `index.html`.
+  An audit found no `script`, `iframe`, `object`, `embed`, `form`, `base`, or
+  `link` elements and no event-handler attributes; every page has the
+  Content-Security-Policy meta tag; all 98 link and image targets that point at
+  local files exist. The only URL schemes present were `https` (11), `mailto`
+  (36, from email autolinks), and relative paths. 4 image attachments rendered
+  inline. 5 tables, 214 code blocks, and 1,551 list items were rendered.
 
 Not exercised:
+
+- Viewing the pages in a browser. Structure, safety, and link integrity were
+  checked programmatically and by unit tests, but the visual styling (dark mode,
+  wide tables, long code lines) has not been looked at.
 
 - `make install`.
 - Windows. Filename sanitizing covers its reserved characters and reserved
