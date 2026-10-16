@@ -14,11 +14,24 @@ matching topic file before making decisions or edits in that area.
 | Markdown files or documentation authoring | [agents/markdown.md](agents/markdown.md) |
 | GNU Makefiles and task runners | [agents/makefile.md](agents/makefile.md) |
 
-## Handover Notes
+## Specification, Handoff, and Changelog
 
-Read [ENGINEERING.md](ENGINEERING.md) before making changes, and update it in
-the same change set when architecture, decisions, verification status, or known
-risks change.
+Three living documents describe the project. Their rules are in
+[agents/coding.md](agents/coding.md).
+
+| File | Role |
+| --- | --- |
+| [ENGINEERING.md](ENGINEERING.md) | Primary specification; the source of truth for behavior and design. |
+| [HANDOFF.md](HANDOFF.md) | Outstanding work and how to resume it. |
+| [CHANGELOG.md](CHANGELOG.md) | Every branch and pull request: what it did, when, and by whom. |
+
+- At the start of a session read `ENGINEERING.md`, then `HANDOFF.md`, then the
+  newest `CHANGELOG.md` entries.
+- Change behavior in `ENGINEERING.md` in the same change set as the code.
+  `spec_test.go` fails if the specification's literal templates, script, or
+  versions drift from the code.
+- At the end of a session update `HANDOFF.md`, and keep the `CHANGELOG.md`
+  entry for the branch current.
 
 ## General Behavior
 
