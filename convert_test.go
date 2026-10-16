@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -169,6 +170,48 @@ func TestRunConvertsExport(t *testing.T) {
 	}
 }
 
+func TestRunCreatesPrivateOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permission bits are not enforced on Windows")
+	}
+
+	dir := t.TempDir()
+	inPath := filepath.Join(dir, "export.json")
+	outDir := filepath.Join(dir, "out")
+	writeExport(t, inPath, Export{
+		History: []Conversation{{
+			ID:       "c1",
+			Name:     "Private",
+			Messages: []Message{{Role: "user", Files: []FileRef{{FileKey: "k1", FileName: "a.txt"}}}},
+		}},
+		Files: []FileBlob{{FileKey: "k1", FileName: "a.txt", Content: "secret"}},
+	})
+
+	if err := run([]string{"-in", inPath, "-out", outDir}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	tests := []struct {
+		path string
+		want fs.FileMode
+	}{
+		{outDir, 0o700},
+		{filepath.Join(outDir, "Unfiled"), 0o700},
+		{filepath.Join(outDir, "Unfiled", "assets"), 0o700},
+		{filepath.Join(outDir, "Unfiled", "Private.md"), 0o600},
+		{filepath.Join(outDir, "Unfiled", "assets", "a.txt"), 0o600},
+	}
+	for _, tt := range tests {
+		info, err := os.Stat(tt.path)
+		if err != nil {
+			t.Fatalf("stat %q: %v", tt.path, err)
+		}
+		if got := info.Mode().Perm(); got != tt.want {
+			t.Errorf("%s mode = %o, want %o", tt.path, got, tt.want)
+		}
+	}
+}
+
 func TestRunOverwriteBehavior(t *testing.T) {
 	dir := t.TempDir()
 	inPath := filepath.Join(dir, "export.json")
@@ -221,6 +264,8 @@ func TestRunErrors(t *testing.T) {
 		{"unreadable input", []string{"-in", filepath.Join(dir, "nope.json")}, fs.ErrNotExist, false},
 		{"invalid JSON", []string{"-in", badJSON}, nil, true},
 		{"no history", []string{"-in", emptyHistory}, ErrNoHistory, false},
+		{"assets escapes folder", []string{"-in", emptyHistory, "-assets", "../x"}, ErrInvalidAssetsDir, false},
+		{"assets empty", []string{"-in", emptyHistory, "-assets", ""}, ErrInvalidAssetsDir, false},
 		{"unknown flag", []string{"-bogus"}, nil, true},
 	}
 

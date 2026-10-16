@@ -4,7 +4,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 const testPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6m9S8AAAAASUVORK5CYII="
@@ -31,6 +33,81 @@ func TestSanitizeFilename(t *testing.T) {
 				t.Fatalf("sanitizeFilename(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestValidateAssetsDir(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      string
+		wantErr bool
+	}{
+		{"default", "assets", false},
+		{"with spaces", "my assets", false},
+		{"dotted name", "assets.v2", false},
+		{"empty", "", true},
+		{"blank", "  ", true},
+		{"current dir", ".", true},
+		{"parent dir", "..", true},
+		{"parent traversal", "../x", true},
+		{"nested", "media/img", true},
+		{"absolute", "/tmp/assets", true},
+		{"backslash", `a\b`, true},
+		{"control character", "a\x00b", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAssetsDir(tt.in)
+			if tt.wantErr && !errors.Is(err, ErrInvalidAssetsDir) {
+				t.Fatalf("validateAssetsDir(%q) = %v, want ErrInvalidAssetsDir", tt.in, err)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("validateAssetsDir(%q) unexpected error: %v", tt.in, err)
+			}
+		})
+	}
+}
+
+func TestTruncateName(t *testing.T) {
+	tests := []struct {
+		name  string
+		in    string
+		limit int
+		want  string
+	}{
+		{"short name unchanged", "notes.txt", 20, "notes.txt"},
+		{"exactly at limit", "abcdefghij", 10, "abcdefghij"},
+		{"extension preserved", "abcdefghijklmnop.png", 10, "abcdef.png"},
+		{"no extension", "abcdefghijklmnop", 10, "abcdefghij"},
+		{"trailing dot and space trimmed", "abcd. efghijklmnop", 6, "abcd"},
+		{"long extension ignored", "ab." + strings.Repeat("x", 30), 10, "ab." + strings.Repeat("x", 7)},
+		{"multibyte not split", strings.Repeat("é", 10), 5, "éé"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncateName(tt.in, tt.limit)
+			if got != tt.want {
+				t.Fatalf("truncateName(%q, %d) = %q, want %q", tt.in, tt.limit, got, tt.want)
+			}
+			if len(got) > tt.limit {
+				t.Fatalf("result is %d bytes, over limit %d", len(got), tt.limit)
+			}
+			if !utf8.ValidString(got) {
+				t.Fatalf("result %q is not valid UTF-8", got)
+			}
+		})
+	}
+}
+
+func TestSanitizeFilenameCapsLength(t *testing.T) {
+	got := sanitizeFilename(strings.Repeat("a", 500) + ".txt")
+	if len(got) > maxNameBytes {
+		t.Fatalf("name is %d bytes, over %d", len(got), maxNameBytes)
+	}
+	if !strings.HasSuffix(got, ".txt") {
+		t.Fatalf("extension lost: %q", got)
 	}
 }
 

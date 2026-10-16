@@ -34,6 +34,9 @@ func run(args []string, stdout io.Writer) error {
 		flags.Usage()
 		return ErrMissingInput
 	}
+	if err := validateAssetsDir(*assetsDir); err != nil {
+		return err
+	}
 
 	data, err := os.ReadFile(*inPath)
 	if err != nil {
@@ -48,7 +51,7 @@ func run(args []string, stdout io.Writer) error {
 		return ErrNoHistory
 	}
 
-	if err := os.MkdirAll(*outDir, 0o755); err != nil {
+	if err := os.MkdirAll(*outDir, dirPerm); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 

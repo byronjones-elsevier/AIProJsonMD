@@ -165,7 +165,7 @@ func (cv *converter) convertConversation(index int, c Conversation) (bool, error
 	if folderPath, ok := cv.folderPaths[stringValue(c.FolderID)]; ok {
 		folderDir = folderPath
 	}
-	if err := os.MkdirAll(folderDir, 0o755); err != nil {
+	if err := os.MkdirAll(folderDir, dirPerm); err != nil {
 		return false, fmt.Errorf("create conversation folder %q: %w", folderDir, err)
 	}
 
@@ -213,7 +213,7 @@ func (cv *converter) writeAttachments(b *strings.Builder, mdPath, assetsDir stri
 	if len(refs) == 0 {
 		return nil
 	}
-	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
+	if err := os.MkdirAll(assetsDir, dirPerm); err != nil {
 		return fmt.Errorf("create assets dir %q: %w", assetsDir, err)
 	}
 
