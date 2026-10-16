@@ -58,7 +58,13 @@ func (cv *converter) convertConversation(index int, c Conversation) (conversionR
 	}
 	if cv.format.writesHTML() {
 		htmlPath := strings.TrimSuffix(mdPath, ".md") + ".html"
-		body, err := cv.html.renderConversation(title, id, c.Messages, attachments)
+		folderName := filepath.Base(folderDir)
+		home, err := cv.homeHref(filepath.Dir(htmlPath))
+		if err != nil {
+			return res, err
+		}
+
+		body, err := cv.html.renderConversation(title, id, conversationNav(folderName, title, home), c.Messages, attachments)
 		if err != nil {
 			return res, err
 		}
@@ -72,32 +78,82 @@ func (cv *converter) convertConversation(index int, c Conversation) (conversionR
 			return res, fmt.Errorf("link %q from the index: %w", htmlPath, err)
 		}
 		cv.index = append(cv.index, indexEntry{
-			Folder: filepath.Base(folderDir),
+			Folder: folderName,
 			Title:  title,
 			Href:   escapeLinkPath(filepath.ToSlash(rel)),
+			File:   filepath.Base(htmlPath),
 		})
 	}
 
 	return res, nil
 }
 
-// writeIndex writes index.html linking every HTML conversation written by this
-// run. It reports whether the file was written; an existing index is kept
-// unless overwrite is set. It does nothing unless the format includes HTML.
-func (cv *converter) writeIndex() (bool, error) {
+// homeHref returns the escaped relative path from fromDir to the main index.
+func (cv *converter) homeHref(fromDir string) (string, error) {
+	rel, err := filepath.Rel(fromDir, filepath.Join(cv.outDir, mainIndexName))
+	if err != nil {
+		return "", fmt.Errorf("link %q to the main index: %w", fromDir, err)
+	}
+	return escapeLinkPath(filepath.ToSlash(rel)), nil
+}
+
+// indexResult reports which navigation pages writeIndexes wrote. A page that
+// already existed and was kept is not counted as written.
+type indexResult struct {
+	main           bool
+	foldersTotal   int
+	foldersWritten int
+}
+
+// writeIndexes writes index.html at the top of the output directory, linking
+// every HTML conversation written by this run, and an index.html inside each
+// folder listing that folder's conversations. Existing pages are kept unless
+// overwrite is set. It does nothing unless the format includes HTML.
+func (cv *converter) writeIndexes() (indexResult, error) {
+	var res indexResult
 	if !cv.format.writesHTML() {
-		return false, nil
+		return res, nil
 	}
 
 	body, err := cv.html.renderIndex(cv.index)
 	if err != nil {
-		return false, err
+		return res, err
 	}
-	written, err := writeFile(filepath.Join(cv.outDir, "index.html"), body, cv.overwrite)
+	res.main, err = writeFile(filepath.Join(cv.outDir, mainIndexName), body, cv.overwrite)
 	if err != nil {
-		return false, fmt.Errorf("write index: %w", err)
+		return res, fmt.Errorf("write index: %w", err)
 	}
-	return written, nil
+
+	var folders []string
+	byFolder := make(map[string][]indexEntry)
+	for _, e := range cv.index {
+		if _, seen := byFolder[e.Folder]; !seen {
+			folders = append(folders, e.Folder)
+		}
+		byFolder[e.Folder] = append(byFolder[e.Folder], e)
+	}
+	res.foldersTotal = len(folders)
+
+	for _, folder := range folders {
+		folderDir := filepath.Join(cv.outDir, folder)
+		home, err := cv.homeHref(folderDir)
+		if err != nil {
+			return res, err
+		}
+		body, err := cv.html.renderFolder(folder, home, byFolder[folder])
+		if err != nil {
+			return res, err
+		}
+		written, err := writeFile(filepath.Join(folderDir, folderIndexName), body, cv.overwrite)
+		if err != nil {
+			return res, fmt.Errorf("write folder index: %w", err)
+		}
+		if written {
+			res.foldersWritten++
+		}
+	}
+
+	return res, nil
 }
 
 // renderMarkdown renders one conversation as a Markdown document.

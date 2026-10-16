@@ -200,6 +200,7 @@ func TestRenderConversation(t *testing.T) {
 	out, err := r.renderConversation(
 		"<b>Title</b> & more",
 		"c1",
+		conversationNav("Folder <x>", "<b>Title</b> & more", "../index.html"),
 		[]Message{
 			{Role: "user", Content: " hello **there** "},
 			{Role: `"><script>alert(1)</script>`, Content: "x"},
@@ -248,7 +249,7 @@ func TestRenderConversation(t *testing.T) {
 
 func TestRenderConversationOmitsEmptySections(t *testing.T) {
 	r := newTestRenderer(t)
-	out, err := r.renderConversation("T", "", nil, nil)
+	out, err := r.renderConversation("T", "", conversationNav("F", "T", "../index.html"), nil, nil)
 	if err != nil {
 		t.Fatalf("renderConversation: %v", err)
 	}
@@ -274,7 +275,12 @@ func TestRenderIndexGroupsAndSorts(t *testing.T) {
 	}
 	page := string(out)
 
-	order := []string{"<h2>Alpha</h2>", "<h2>alpha2</h2>", "<h2>zeta</h2>", "<h2>Unfiled</h2>"}
+	order := []string{
+		`<h2><a href="Alpha/index.html">Alpha</a></h2>`,
+		`<h2><a href="alpha2/index.html">alpha2</a></h2>`,
+		`<h2><a href="zeta/index.html">zeta</a></h2>`,
+		`<h2><a href="Unfiled/index.html">Unfiled</a></h2>`,
+	}
 	last := -1
 	for _, want := range order {
 		i := strings.Index(page, want)
@@ -407,7 +413,7 @@ func TestRunHTMLFormat(t *testing.T) {
 			t.Errorf("index missing %q in:\n%s", want, index)
 		}
 	}
-	if strings.Index(index, "<h2>Project A</h2>") > strings.Index(index, "<h2>Unfiled</h2>") {
+	if strings.Index(index, ">Project A</a></h2>") > strings.Index(index, ">Unfiled</a></h2>") {
 		t.Errorf("Unfiled should be listed after named folders")
 	}
 }

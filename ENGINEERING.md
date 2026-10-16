@@ -13,7 +13,9 @@ JSON file into:
   self-contained HTML file per conversation (`-format html`), or both
   (`-format both`)
 - with HTML output, an `index.html` at the top of the output directory linking
-  every conversation
+  every folder and conversation, and an `index.html` inside each folder listing
+  that folder's conversations; every page below the main index has a
+  breadcrumb, a link up one level, and a link back to the main index
 - one output subfolder per export folder name, plus `Unfiled` for chats without
   a mapped folder
 - one flat `assets/` directory inside each output folder holding extracted
@@ -46,6 +48,7 @@ Usage and flags are documented in [README.md](README.md).
 | `files_test.go` | Table-driven tests for the `files.go` helpers |
 | `convert_test.go` | Tests for `convert.go` helpers and end-to-end Markdown `run` tests on a synthetic export |
 | `html_test.go` | HTML tests: Markdown rendering, raw-HTML and URL safety, page and index output, `-format` runs |
+| `nav_test.go` | Navigation tests: breadcrumb and up/home links, folder pages, every local link in a generated site resolving, reserved `index` names |
 | `go.mod`, `go.sum` | Module definition with the goldmark dependency and its checksums |
 | `Makefile` | Build, test, lint, and help targets (see `make help`) |
 | `Agents.md`, `agents/` | Agent guidance and the topic files it routes to |
@@ -75,8 +78,10 @@ Usage and flags are documented in [README.md](README.md).
    4. renders and writes the Markdown file (`renderMarkdown`) and/or the HTML
       file (`htmlRenderer.renderConversation`) from the same data, and records
       an index entry for the HTML file
-5. `writeIndex` renders `index.html` from the collected entries (HTML formats
-   only).
+5. `writeIndexes` renders the main `index.html` from the collected entries and
+   an `index.html` for each folder (HTML formats only). Each conversation and
+   folder page gets its navigation from `conversationNav` or `folderNav`, with
+   the path back to the main index computed by `homeHref`.
 6. Print how many files of each format were written.
 
 Error handling: fatal errors are wrapped with `%w` and returned to `main`,
@@ -146,11 +151,29 @@ layer fails:
   Dependabot's `gomod` updates, and `govulncheck` now cover a real dependency.
 - **`-format md|html|both`, default `md`.** Existing invocations behave exactly
   as before. Rejected: a boolean `-html` flag, which cannot produce HTML only.
-- **`index.html` for HTML output.** One page at the top of the output
-  directory lists every conversation grouped by folder (alphabetical, `Unfiled`
-  last). It is only written for `html` and `both`. Like other output files it is
-  kept, not rewritten, when it already exists unless `-overwrite` is set, so
-  re-running with new conversations needs `-overwrite` to refresh it.
+- **Three-level HTML hierarchy with navigation.** The main `index.html` lists
+  every conversation grouped by folder (alphabetical, `Unfiled` last), each
+  folder heading links to a folder page, and every conversation and folder page
+  shows a breadcrumb (`Main index > folder > conversation`), an up link, and a
+  link back to the main index. The folder page exists so "up one level" from a
+  conversation has a real target; without it the up link and the main-index link
+  would be the same. The current page is the last crumb, unlinked and marked
+  `aria-current="page"`. All links are relative, so the tree works from disk or
+  after being moved. These pages are only written for `html` and `both`. Like
+  other output files they are kept, not rewritten, when they already exist
+  unless `-overwrite` is set, so re-running with new conversations needs
+  `-overwrite` to refresh them. Rejected: a breadcrumb that only links to the
+  main index, which gives no way up one level.
+- **`index` is a reserved conversation name.** Each folder's page is
+  `index.html`, so a conversation titled "index" is written as `index_2`. The
+  reservation applies to every format, so Markdown and HTML names always match.
+  The cost is that a Markdown-only run also renames a conversation titled
+  "index".
+- **Folder directory names are unique ignoring case.** `buildFolderPaths` now
+  compares names case-insensitively and reserves `index.html` (the main index
+  file), so `Docs` and `docs` become `Docs` and `docs_2` rather than sharing a
+  directory on case-insensitive filesystems. It also fixes a latent collision
+  when a folder was literally named like an already-suffixed one (`Docs_2`).
 - **One extraction, two renderers.** Attachments are extracted once into a
   neutral `attachment` list that both renderers read, so the Markdown output
   stays byte-identical to the pre-HTML version and the two formats cannot
@@ -180,7 +203,7 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
 - `go vet ./...` is clean.
 - `golangci-lint run ./...` reports 0 issues (standard linters plus
   `errorlint`, `gosec`, `misspell`, `revive`, `unconvert`).
-- `go test -race -cover ./...` passes with 90.2% statement coverage.
+- `go test -race -cover ./...` passes with 89.6% statement coverage.
 - `make help`, `make all`, `make test/cover`, `make clean`, and the `make run`
   guard without `IN` behave as documented.
 - `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
@@ -226,11 +249,20 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   (36, from email autolinks), and relative paths. 4 image attachments rendered
   inline. 5 tables, 214 code blocks, and 1,551 list items were rendered.
 
+- Navigation on the real export (`-format both`): the Markdown and attachments
+  were byte-identical to `main` (`ab33ef0`). The HTML had 1 main index, 9 folder
+  pages, and 40 conversation pages. Every folder and conversation page had a
+  breadcrumb with exactly one current-page crumb (2 crumbs on folder pages, 3 on
+  conversation pages), a link to the main index, and, on conversation pages, a
+  link up to the folder page. The main index had no breadcrumb. No local link
+  was unresolved.
+
 Not exercised:
 
-- Viewing the pages in a browser. Structure, safety, and link integrity were
-  checked programmatically and by unit tests, but the visual styling (dark mode,
-  wide tables, long code lines) has not been looked at.
+- Viewing the pages in a browser. Structure, safety, navigation, and link
+  integrity were checked programmatically and by unit tests, but the visual
+  styling (breadcrumb layout, dark mode, wide tables, long code lines) has not
+  been looked at.
 
 - `make install`.
 - Windows. Filename sanitizing covers its reserved characters and reserved

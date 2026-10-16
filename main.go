@@ -79,7 +79,7 @@ func run(args []string, stdout io.Writer) error {
 		}
 	}
 
-	indexWritten, err := cv.writeIndex()
+	indexes, err := cv.writeIndexes()
 	if err != nil {
 		return err
 	}
@@ -91,10 +91,11 @@ func run(args []string, stdout io.Writer) error {
 	}
 	if format.writesHTML() {
 		index := "kept"
-		if indexWritten {
+		if indexes.main {
 			index = "written"
 		}
-		lines = append(lines, fmt.Sprintf("Wrote %d of %d HTML files to %s (index.html %s)", htmlWritten, total, *outDir, index))
+		lines = append(lines, fmt.Sprintf("Wrote %d of %d HTML files to %s (index.html %s, %d of %d folder index pages written)",
+			htmlWritten, total, *outDir, index, indexes.foldersWritten, indexes.foldersTotal))
 	}
 	lines[0] = "Done. " + lines[0]
 	lines = append(lines, fmt.Sprintf("Attachments written under per-folder %s directories", *assetsDir))
