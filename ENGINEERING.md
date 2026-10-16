@@ -277,6 +277,18 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   (36, from email autolinks), and relative paths. 4 image attachments rendered
   inline. 5 tables, 214 code blocks, and 1,551 list items were rendered.
 
+- Copy buttons on the real export: all 26 conversation pages with a code block
+  carry the script, each page's policy hash matches the script bytes in that
+  page, and the other 24 pages (14 conversation pages, 9 folder pages, the main
+  index) contain no script and use the base policy. In Chrome, on a page opened
+  from disk (`file://`), the clipboard was set to a marker, the Copy button was
+  clicked, and the clipboard then held the code block's exact text: every line,
+  the blank lines, the final newline, and a long line that the block clips on
+  screen. The button changed to "Copied!". (Automation note: the first click on
+  an inactive window only activated it; the second click copied.) The two
+  bookmarklet pages contain the text `javascript:` only inside code blocks, never
+  in an attribute.
+
 - Navigation on the real export (`-format both`): the Markdown and attachments
   were byte-identical to `main` (`ab33ef0`). The HTML had 1 main index, 9 folder
   pages, and 40 conversation pages. Every folder and conversation page had a
@@ -317,6 +329,13 @@ Not exercised:
 - `govulncheck` runs in CI on every push and pull request, so a newly published
   advisory can fail an unrelated PR. Raise the `go.mod` `toolchain` line or
   `GOVULNCHECK_VERSION` to clear it.
+- Copy buttons have been exercised in one browser (Chrome, from disk, light
+  mode). Not exercised: Safari and Firefox; the fallback path
+  (`execCommand`), which only runs where the Clipboard API is unavailable or
+  rejects; the "Failed" state; activating the button from the keyboard; a screen
+  reader announcing the status; the button's appearance in dark mode; and a
+  page with scripts disabled. The script is checked for syntax with
+  `node --check` and its policy and placement by unit tests.
 
 ## Build, Run, and Validate
 
