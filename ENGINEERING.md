@@ -112,26 +112,25 @@ stop the run; they are written into the Markdown as a note and logged with
 
 ## Verified
 
-Checked on 2026-10-16 with Go 1.27.1 on macOS:
+Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
 
 - `gofmt -l .` reports nothing.
 - `go vet ./...` is clean.
 - `golangci-lint run ./...` reports 0 issues (default linters).
-- `go test -race -cover ./...` passes with 89.7% statement coverage.
+- `go test -race -cover ./...` passes with 88.8% statement coverage (89.7% on
+  Go 1.27.1; the difference is the toolchain's instrumentation, not the tests).
 - `make help`, `make all`, `make test/cover`, `make clean`, and the `make run`
   guard without `IN` behave as documented.
 - `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
   a missing blob, an image attachment, names with spaces and parentheses, the
   overwrite and no-overwrite paths, rejected `-assets` values, and the
   `0600`/`0700` output modes.
-- `make vuln` (`govulncheck v1.9.0`) runs. It reports 4 standard-library
-  vulnerabilities in Go 1.27.1 (GO-2026-6603, -6611, -6613, -6617), all in
-  `net/http` server and HTTP/2 code and all fixed in Go 1.27.2. The tool only
-  calls `http.DetectContentType` and never starts an HTTP server or client, so
-  the reported traces go through `init` and `io.Writer` dispatch rather than
-  real HTTP use. Upgrading the toolchain to 1.27.2 or later clears them.
-  The scan also lists 7 findings in imported standard-library packages and 2 in
-  required modules that the code does not call. There are no third-party
+- `make vuln` (`govulncheck v1.9.0`) reports no vulnerabilities on Go 1.27.2.
+  On Go 1.27.1 it reported 4 standard-library findings (GO-2026-6603, -6611,
+  -6613, -6617) in `net/http` server and HTTP/2 code. The tool only calls
+  `http.DetectContentType` and never starts an HTTP server or client, so those
+  traces went through `init` and `io.Writer` dispatch rather than real HTTP
+  use. Upgrading the toolchain cleared them. There are no third-party
   dependencies.
 - Output of the pre-refactor build (from `main`) and the refactored build,
   both run on a real export of 40 conversations and diffed. The file trees
@@ -150,13 +149,15 @@ Not exercised:
 
 ## Remaining Risks and Possible Work
 
-- The development toolchain (Go 1.27.1) has the four standard-library
-  vulnerabilities listed under Verified. Upgrade to Go 1.27.2 or later, or add
-  a `toolchain` line to `go.mod`, to clear `make vuln`. Avoiding the
-  `net/http` import (it is used only for `http.DetectContentType`) would also
-  remove them from the binary but needs a hand-written image sniffer.
-- `make vuln` exits non-zero while those findings stand, so it is deliberately
-  not part of `make all`.
+- `go.mod` sets `go 1.26` with no `toolchain` line, so a contributor on an
+  older patch release of Go can build with standard-library vulnerabilities
+  that `make vuln` would flag. Use Go 1.27.2 or later, or add a `toolchain`
+  line.
+- `golangci-lint` must be built with a Go release at least as new as the
+  project's toolchain. A 2.13.2 build made with Go 1.27.0 failed typechecking
+  on Go 1.27.2 until it was upgraded.
+- `make vuln` needs network access to the Go module proxy and vulnerability
+  database, so it is deliberately not part of `make all`.
 - Windows reserved file names (`CON`, `NUL`, ...) are not handled.
 - There is no CI workflow and no pinned `golangci-lint` configuration.
 
