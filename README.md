@@ -16,27 +16,32 @@
 
 ## Requirements
 
-- Go 1.22 or newer
+- Go 1.26 or newer
+- Optional, for `make lint` and `make vuln`: `golangci-lint` and `govulncheck`
 
 ## Build
 
 ```bash
-go build -o AIProJsonMD
+make build
 ```
 
 This produces a local executable named `AIProJsonMD` in the project root.
+Without `make`, run `go build -o AIProJsonMD .`.
 
 ## Run
 
 ```bash
-go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
+make run IN=export.json
 ```
 
-Or run the built binary:
+Or run the built binary directly:
 
 ```bash
-./AIProJsonMD -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
+./AIProJsonMD -in export.json -out out_markdown
 ```
+
+Progress and the final summary go to stdout. Skipped attachments and fatal
+errors are logged to stderr, and a fatal error exits with status 1.
 
 ## Flags
 
@@ -117,7 +122,8 @@ Example:
 ```text
 out_markdown/
   Bash Projects/
-    1a2b3c4d5e_1.md
+    Deploy script review.md
+    Deploy script review_2.md
     assets/
       notes.txt
   Unfiled/
@@ -126,7 +132,7 @@ out_markdown/
 
 ## Notes
 
-- Conversation file names use a short SHA-256 hash derived from the conversation ID plus the conversation index.
+- Conversation file names come from the sanitized conversation name. A duplicate name in the same folder gets a `_2`, `_3`, ... suffix. A conversation with no name falls back to a short SHA-256 hash of its ID plus its position in the export.
 - Folder names are taken from the export `folders` list and sanitized for filesystem use.
 - Attachment references are de-duplicated per conversation before extraction.
 - Attachment file names are sanitized for filesystem safety.
@@ -135,6 +141,24 @@ out_markdown/
 - Existing markdown and attachment files are not overwritten unless `-overwrite` is set.
 - If an attachment reference exists in a conversation but no matching file blob is found, the Markdown output notes the missing attachment.
 
+- Attachment links are URL-escaped, so names with spaces or parentheses still resolve.
+- The summary line reports how many Markdown files were actually written. Files skipped because they already exist are not counted.
+
+## Development
+
+```bash
+make all         # format check, vet, golangci-lint, race tests, build
+make test        # unit tests
+make test/cover  # tests with a coverage total
+make help        # list every target
+```
+
+Tests use the standard library `testing` package and live next to the code.
+`run` is covered end to end with a synthetic export built in the test, so no
+real chat history is needed.
+
 ## Engineering Notes
 
-See [ENGINEERING.md](ENGINEERING.md) for implementation details, schema assumptions, and maintenance notes.
+See [ENGINEERING.md](ENGINEERING.md) for architecture, key decisions,
+verification status, and known risks. Agent guidance lives in
+[Agents.md](Agents.md).

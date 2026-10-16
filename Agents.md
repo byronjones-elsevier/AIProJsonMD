@@ -12,6 +12,13 @@ matching topic file before making decisions or edits in that area.
 | Go | [agents/go.md](agents/go.md) |
 | Test strategy or test implementation | [agents/testing.md](agents/testing.md) |
 | Markdown files or documentation authoring | [agents/markdown.md](agents/markdown.md) |
+| GNU Makefiles and task runners | [agents/makefile.md](agents/makefile.md) |
+
+## Handover Notes
+
+Read [ENGINEERING.md](ENGINEERING.md) before making changes, and update it in
+the same change set when architecture, decisions, verification status, or known
+risks change.
 
 ## General Behavior
 
