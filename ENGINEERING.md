@@ -105,11 +105,14 @@ Checked on 2026-10-16 with Go 1.27.1 on macOS:
 - `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
   a missing blob, an image attachment, names with spaces and parentheses, and
   the overwrite and no-overwrite paths.
+- Output of the pre-refactor build (from `main`) and the refactored build,
+  both run on a real export of 40 conversations and diffed. The file trees
+  matched (47 files each). One Markdown file differed: three attachment links
+  with spaces in the name are now URL-escaped, as intended. All other Markdown
+  and attachment files were byte-identical.
 
 Not exercised:
 
-- A run against a real, large export after the refactor. The pre-refactor
-  output was not diffed against the new output.
 - `govulncheck` (not installed on the development machine) and `make install`.
 - Windows. Filename sanitizing covers its reserved characters but not reserved
   names such as `CON`.
