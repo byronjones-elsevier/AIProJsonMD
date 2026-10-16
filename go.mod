@@ -1,3 +1,3 @@
-module AIProJsonMD
+module github.com/byronjones-elsevier/AIProJsonMD
 
-go 1.22
+go 1.26
