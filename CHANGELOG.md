@@ -34,19 +34,36 @@ Conventions:
 
 ## In flight
 
-### docs/spec-handoff-changelog: specification, handoff, and changelog files (no PR yet)
+### docs/changelog-pr20-merged: record PR #20 as merged (no PR yet)
 
-- Branch: `docs/spec-handoff-changelog`, base `main` (`590c032`); PR not yet
-  opened; commits `2bbae52` onward (see `git log main..docs/spec-handoff-changelog`;
-  the final range is recorded when the PR is opened, because a commit cannot
-  name its own SHA)
-- Status: open (awaiting push and PR)
+- Branch: `docs/changelog-pr20-merged`, base `main` (`0a37544`); PR not yet
+  opened; commits not yet made
+- Status: open
+- Started: 2026-10-16T17:47:34Z (branch created from `main`; first commit follows)
+- Worked on by: Byron Jones (reported the merge; will push and merge); Claude
+  Sonnet 5.5 via Claude Code (author)
+- What it does: moves the PR #20 entry from "In flight" to History with its
+  merge time, states the incident above, brings `HANDOFF.md` up to date with
+  `main` at `0a37544`, and updates the "last reviewed" commit in
+  `ENGINEERING.md`.
+- Spec and docs: `CHANGELOG.md`, `HANDOFF.md`, `ENGINEERING.md` header only.
+- Verification: documentation only; `make all` and markdownlint run before commit.
+
+## History
+
+### docs/spec-handoff-changelog: specification, handoff, changelog, and reserved Unfiled (PR #20)
+
+- Branch: `docs/spec-handoff-changelog`, base `main` (`590c032`); PR #20; commits
+  `2bbae52..b0a4831` (3 commits; merge commit `0a37544`)
+- Status: merged
 - Started: 2026-10-16T17:30:09Z (first commit; the branch was created from `main`
   after PR #19 merged at 17:03:46Z)
-- Last commit: set when the PR is opened (`2bbae52` was 2026-10-16T17:30:09Z)
-- Worked on by: Byron Jones (requested the change and the three-file model;
-  will push and merge); Claude Sonnet 5.5 via Claude Code (author)
-- What it does:
+- Last commit: 2026-10-16T17:37:23Z (`b0a4831`)
+- Merged: 2026-10-16T17:45:59Z
+- Worked on by: Byron Jones (requested the change and the three-file model,
+  chose to reserve `Unfiled`, pushed, merged); Claude Sonnet 5.5 via Claude Code
+  (author, opened the PR)
+- What it did:
   - Refactors the global standard `~/.claude/agents/coding.md` (outside this
     repository) so `ENGINEERING.md` is the primary specification, `HANDOFF.md`
     tracks outstanding work, and `CHANGELOG.md` tracks all work.
@@ -92,8 +109,13 @@ Conventions:
   (no deletion, no network calls, output stays inside `-out`, relative links,
   warning log format) into automated checks. One of the new drift tests caught
   an omission made while editing the specification itself.
-
-## History
+- CI: all five jobs passed on the PR (tests on Linux and macOS, lint,
+  vulnerability scan, Markdown lint), plus CodeQL.
+- Incident: the PR was merged before a small follow-up commit (`602ffb7`) that
+  recorded the PR number and range in this entry was pushed, so for one PR the
+  changelog on `main` said this work was still open. The correction is the
+  entry below (a documentation-only follow-up PR). Lesson recorded in
+  HANDOFF.md section 7.
 
 ### docs/rename-agents-md: rename Agents.md to AGENTS.md (PR #19)
 
