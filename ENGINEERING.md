@@ -149,10 +149,9 @@ Not exercised:
 
 ## Remaining Risks and Possible Work
 
-- `go.mod` sets `go 1.26` with no `toolchain` line, so a contributor on an
-  older patch release of Go can build with standard-library vulnerabilities
-  that `make vuln` would flag. Use Go 1.27.2 or later, or add a `toolchain`
-  line.
+- `go.mod` sets `go 1.26` with `toolchain go1.27.2`, so `go` fetches a patched
+  toolchain when the local one is older. Raise the `toolchain` line when a
+  newer Go patch release fixes a standard-library vulnerability.
 - `golangci-lint` must be built with a Go release at least as new as the
   project's toolchain. A 2.13.2 build made with Go 1.27.0 failed typechecking
   on Go 1.27.2 until it was upgraded.
