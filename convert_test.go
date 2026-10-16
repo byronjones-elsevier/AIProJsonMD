@@ -259,7 +259,7 @@ func TestRunOverwriteBehavior(t *testing.T) {
 func TestRunErrors(t *testing.T) {
 	dir := t.TempDir()
 	badJSON := filepath.Join(dir, "bad.json")
-	if err := os.WriteFile(badJSON, []byte("{not json"), 0o644); err != nil {
+	if err := os.WriteFile(badJSON, []byte("{not json"), 0o600); err != nil {
 		t.Fatalf("setup write failed: %v", err)
 	}
 	emptyHistory := filepath.Join(dir, "empty.json")
@@ -300,7 +300,7 @@ func writeExport(t *testing.T, path string, export Export) {
 	if err != nil {
 		t.Fatalf("marshal export: %v", err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatalf("write export: %v", err)
 	}
 }

@@ -322,7 +322,7 @@ func TestResolveAssetPath(t *testing.T) {
 	dir := t.TempDir()
 	write := func(name, content string) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 			t.Fatalf("setup write failed: %v", err)
 		}
 	}
@@ -400,7 +400,7 @@ func TestWriteFileReportsWhetherItWrote(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "f.txt")
 			if tt.hasExisting {
-				if err := os.WriteFile(path, []byte(tt.existing), 0o644); err != nil {
+				if err := os.WriteFile(path, []byte(tt.existing), 0o600); err != nil {
 					t.Fatalf("setup write failed: %v", err)
 				}
 			}

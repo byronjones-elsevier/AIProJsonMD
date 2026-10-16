@@ -156,6 +156,10 @@ make vuln        # pinned govulncheck (set GOVULNCHECK_VERSION to change)
 make help        # list every target
 ```
 
+GitHub Actions (`.github/workflows/ci.yml`) runs the format check, vet, race
+tests, and build on Linux and macOS, plus `golangci-lint`, `govulncheck`, and
+Markdown lint, on every pull request and push to `main`.
+
 Tests use the standard library `testing` package and live next to the code.
 `run` is covered end to end with a synthetic export built in the test, so no
 real chat history is needed.
