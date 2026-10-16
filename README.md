@@ -160,8 +160,8 @@ The pages form three levels: the main index, a page for each folder, and the con
 Main index › Bash Projects › Deploy script review
 ```
 
-- A conversation page has a link up to its folder page and a link back to the main index.
-- A folder page lists that folder's conversations and has a link up to the main index.
+- The breadcrumb is the navigation; there is no separate row of links. Every crumb except the current page is a link, so the crumb just before the current page goes up one level, and the first crumb always goes back to the main index.
+- A folder page lists that folder's conversations.
 - The main index lists every folder, each linking to its folder page, with the conversations under it, alphabetically with `Unfiled` last.
 
 All links are relative, so the output directory can be moved, zipped, or opened straight from disk. Like every other output file, the main index and the folder pages are kept if they already exist; use `-overwrite` to regenerate them after adding conversations.

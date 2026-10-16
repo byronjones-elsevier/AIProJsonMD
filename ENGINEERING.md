@@ -15,7 +15,7 @@ JSON file into:
 - with HTML output, an `index.html` at the top of the output directory linking
   every folder and conversation, and an `index.html` inside each folder listing
   that folder's conversations; every page below the main index has a
-  breadcrumb, a link up one level, and a link back to the main index
+  breadcrumb whose links go up one level and back to the main index
 - one output subfolder per export folder name, plus `Unfiled` for chats without
   a mapped folder
 - one flat `assets/` directory inside each output folder holding extracted
@@ -154,12 +154,14 @@ layer fails:
 - **Three-level HTML hierarchy with navigation.** The main `index.html` lists
   every conversation grouped by folder (alphabetical, `Unfiled` last), each
   folder heading links to a folder page, and every conversation and folder page
-  shows a breadcrumb (`Main index > folder > conversation`), an up link, and a
-  link back to the main index. The folder page exists so "up one level" from a
-  conversation has a real target; without it the up link and the main-index link
-  would be the same. The current page is the last crumb, unlinked and marked
-  `aria-current="page"`. All links are relative, so the tree works from disk or
-  after being moved. These pages are only written for `html` and `both`. Like
+  shows a breadcrumb (`Main index > folder > conversation`). The breadcrumb is
+  the only navigation: the crumb before the current page is the way up one level
+  and the first crumb is the way back to the main index. An earlier version also
+  rendered a second line (`Up to <folder> · Main index`); it only repeated the
+  breadcrumb's links, so it was removed after review. The folder page exists so
+  "up one level" from a conversation has a real target. The current page is the
+  last crumb, unlinked and marked `aria-current="page"`. All links are relative,
+  so the tree works from disk or after being moved. These pages are only written for `html` and `both`. Like
   other output files they are kept, not rewritten, when they already exist
   unless `-overwrite` is set, so re-running with new conversations needs
   `-overwrite` to refresh them. Rejected: a breadcrumb that only links to the
@@ -253,9 +255,11 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   were byte-identical to `main` (`ab33ef0`). The HTML had 1 main index, 9 folder
   pages, and 40 conversation pages. Every folder and conversation page had a
   breadcrumb with exactly one current-page crumb (2 crumbs on folder pages, 3 on
-  conversation pages), a link to the main index, and, on conversation pages, a
-  link up to the folder page. The main index had no breadcrumb. No local link
-  was unresolved.
+  conversation pages), a first crumb linking to the main index, and, on
+  conversation pages, a parent crumb linking to the folder page. No page linked
+  to the main index anywhere except the breadcrumb, and none kept the removed
+  second navigation line. The main index had no breadcrumb. No local link was
+  unresolved.
 
 Not exercised:
 

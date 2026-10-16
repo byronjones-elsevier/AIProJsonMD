@@ -36,10 +36,9 @@ table{border-collapse:collapse;display:block;overflow:auto}
 th,td{border:1px solid var(--border);padding:.3rem .6rem}
 blockquote{margin:0;padding-left:1rem;border-left:4px solid var(--border);color:var(--muted)}
 img{max-width:100%}
-.breadcrumb ol{display:flex;flex-wrap:wrap;gap:.25rem;margin:0;padding:0;list-style:none;color:var(--muted)}
+.breadcrumb ol{display:flex;flex-wrap:wrap;gap:.25rem;margin:0 0 1rem;padding:0;list-style:none;color:var(--muted)}
 .breadcrumb li+li::before{content:"\203A";margin-right:.25rem}
-.breadcrumb li[aria-current]{color:var(--fg);overflow-wrap:anywhere}
-.nav{margin:.5rem 0 1rem}`
+.breadcrumb li[aria-current]{color:var(--fg);overflow-wrap:anywhere}`
 
 // pageHead is the shared document head. The Content-Security-Policy blocks
 // scripts and every external resource, so a hostile chat cannot run code or
@@ -57,14 +56,15 @@ const pageHead = `<!DOCTYPE html>
 <main>
 `
 
-// navBlock is the breadcrumb trail and the up and home links shown on every
-// page below the main index. The current page is the last crumb and has no link.
+// navBlock is the breadcrumb trail shown on every page below the main index.
+// Its links are the navigation: the first crumb is the main index, the one
+// before the current page is the parent, and the current page is the last crumb
+// with no link.
 const navBlock = `<nav class="breadcrumb" aria-label="Breadcrumb">
 <ol>
 {{range .Nav.Crumbs}}<li{{if not .Href}} aria-current="page"{{end}}>{{if .Href}}<a href="{{.Href}}">{{.Label}}</a>{{else}}{{.Label}}{{end}}</li>
 {{end}}</ol>
 </nav>
-<p class="nav"><a href="{{.Nav.UpHref}}">&uarr; Up to {{.Nav.UpLabel}}</a>{{if .Nav.ShowHome}} &middot; <a href="{{.Nav.HomeHref}}">Main index</a>{{end}}</p>
 `
 
 const pageTemplate = pageHead + navBlock + `<h1>{{.Title}}</h1>
@@ -109,15 +109,10 @@ type crumb struct {
 	Href  string
 }
 
-// navData is the navigation shown on pages below the main index: the
-// breadcrumb trail, a link up one level, and, where it differs from the up
-// link, a link back to the main index.
+// navData is the navigation shown on pages below the main index: a breadcrumb
+// trail from the main index down to the current page.
 type navData struct {
-	Crumbs   []crumb
-	UpHref   string
-	UpLabel  string
-	HomeHref string
-	ShowHome bool
+	Crumbs []crumb
 }
 
 // pageData is the model for one conversation page.
@@ -281,29 +276,21 @@ func roleClass(role string) string {
 // folder next to the conversation pages, so a conversation links up with it.
 const folderIndexName = reservedConversationName + ".html"
 
-// conversationNav is the navigation for a conversation page: Main index >
-// folder > conversation, up to the folder, and back to the main index.
-// homeHref is the escaped path from the conversation page to the main index.
+// conversationNav is the breadcrumb for a conversation page: Main index >
+// folder > conversation. homeHref is the escaped path from the conversation
+// page to the main index.
 func conversationNav(folder, title, homeHref string) navData {
-	return navData{
-		Crumbs:   []crumb{{Label: "Main index", Href: homeHref}, {Label: folder, Href: folderIndexName}, {Label: title}},
-		UpHref:   folderIndexName,
-		UpLabel:  folder,
-		HomeHref: homeHref,
-		ShowHome: true,
-	}
+	return navData{Crumbs: []crumb{
+		{Label: "Main index", Href: homeHref},
+		{Label: folder, Href: folderIndexName},
+		{Label: title},
+	}}
 }
 
-// folderNav is the navigation for a folder page: Main index > folder, with the
-// up link going to the main index. homeHref is the escaped path from the folder
-// page to the main index.
+// folderNav is the breadcrumb for a folder page: Main index > folder. homeHref
+// is the escaped path from the folder page to the main index.
 func folderNav(folder, homeHref string) navData {
-	return navData{
-		Crumbs:   []crumb{{Label: "Main index", Href: homeHref}, {Label: folder}},
-		UpHref:   homeHref,
-		UpLabel:  "Main index",
-		HomeHref: homeHref,
-	}
+	return navData{Crumbs: []crumb{{Label: "Main index", Href: homeHref}, {Label: folder}}}
 }
 
 // renderFolder renders a folder's index.html listing its conversations. Entry

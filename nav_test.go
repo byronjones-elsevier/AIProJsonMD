@@ -15,17 +15,11 @@ import (
 
 func TestConversationNav(t *testing.T) {
 	got := conversationNav("Project A", "First chat", "../index.html")
-	want := navData{
-		Crumbs: []crumb{
-			{Label: "Main index", Href: "../index.html"},
-			{Label: "Project A", Href: "index.html"},
-			{Label: "First chat"},
-		},
-		UpHref:   "index.html",
-		UpLabel:  "Project A",
-		HomeHref: "../index.html",
-		ShowHome: true,
-	}
+	want := navData{Crumbs: []crumb{
+		{Label: "Main index", Href: "../index.html"},
+		{Label: "Project A", Href: "index.html"},
+		{Label: "First chat"},
+	}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("conversationNav = %+v, want %+v", got, want)
 	}
@@ -33,12 +27,7 @@ func TestConversationNav(t *testing.T) {
 
 func TestFolderNav(t *testing.T) {
 	got := folderNav("Project A", "../index.html")
-	want := navData{
-		Crumbs:   []crumb{{Label: "Main index", Href: "../index.html"}, {Label: "Project A"}},
-		UpHref:   "../index.html",
-		UpLabel:  "Main index",
-		HomeHref: "../index.html",
-	}
+	want := navData{Crumbs: []crumb{{Label: "Main index", Href: "../index.html"}, {Label: "Project A"}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("folderNav = %+v, want %+v", got, want)
 	}
@@ -57,11 +46,19 @@ func TestRenderConversationShowsBreadcrumbAndLinks(t *testing.T) {
 		`<li><a href="../index.html">Main index</a></li>`,
 		`<li><a href="index.html">Folder &lt;x&gt;</a></li>`,
 		`<li aria-current="page">&lt;b&gt;Title&lt;/b&gt; &amp; more</li>`,
-		`<a href="index.html">&uarr; Up to Folder &lt;x&gt;</a> &middot; <a href="../index.html">Main index</a>`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %q", want)
 		}
+	}
+	// The breadcrumb is the only navigation; it must not be repeated below.
+	for _, link := range []string{`href="../index.html"`, `href="index.html"`} {
+		if n := strings.Count(page, link); n != 1 {
+			t.Errorf("%s appears %d times, want once (in the breadcrumb)", link, n)
+		}
+	}
+	if strings.Contains(page, "Up to") || strings.Contains(page, "&uarr;") {
+		t.Errorf("page repeats the breadcrumb links in a second navigation line")
 	}
 	if strings.Contains(page, `<a href="`+"index.html"+`">&lt;b&gt;Title`) {
 		t.Errorf("the current page should not be a link in the breadcrumb")
@@ -84,7 +81,6 @@ func TestRenderFolder(t *testing.T) {
 		"<h1>My &lt;Folder&gt;</h1>",
 		`<li><a href="../index.html">Main index</a></li>`,
 		`<li aria-current="page">My &lt;Folder&gt;</li>`,
-		`<a href="../index.html">&uarr; Up to Main index</a></p>`,
 		`<li><a href="A%20one%20%281%29.html">A &lt;one&gt;</a></li>`,
 		`<li><a href="Two.html">Two</a></li>`,
 	} {
@@ -92,8 +88,11 @@ func TestRenderFolder(t *testing.T) {
 			t.Errorf("folder page does not contain %q", want)
 		}
 	}
-	if strings.Contains(page, "&middot;") {
-		t.Errorf("folder page repeats the main index link next to the up link")
+	if n := strings.Count(page, `href="../index.html"`); n != 1 {
+		t.Errorf("the main index link appears %d times, want once (in the breadcrumb)", n)
+	}
+	if strings.Contains(page, "Up to") || strings.Contains(page, "&uarr;") {
+		t.Errorf("folder page repeats the breadcrumb links in a second navigation line")
 	}
 	if strings.Contains(page, "<Folder>") || strings.Contains(page, "<one>") {
 		t.Errorf("folder page contains an unescaped name")
