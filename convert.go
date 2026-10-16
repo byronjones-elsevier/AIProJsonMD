@@ -17,6 +17,15 @@ var linkTextEscaper = strings.NewReplacer("[", `\[`, "]", `\]`)
 // unfiledName is the folder for conversations without a mapped export folder.
 const unfiledName = "Unfiled"
 
+// mainIndexName is the page at the top of the output directory.
+const mainIndexName = "index.html"
+
+// reservedConversationName is never used for a conversation file. Each folder
+// has an index page with this base name, so a conversation titled "index" is
+// written as "index_2" to keep the folder page from being replaced. The name is
+// reserved for every format so Markdown and HTML names always match.
+const reservedConversationName = "index"
+
 // converter turns export conversations into Markdown and HTML files plus
 // extracted attachments.
 type converter struct {
@@ -91,7 +100,10 @@ func collectConversationFiles(c Conversation) []FileRef {
 // Names are sanitized, and duplicate names get a numeric suffix.
 func buildFolderPaths(outDir string, folders []Folder) map[string]string {
 	folderPaths := make(map[string]string, len(folders))
-	usedPaths := make(map[string]int, len(folders))
+	// Names are compared case-insensitively so folders that differ only in case
+	// do not share a directory on case-insensitive filesystems. The main index
+	// file lives in the output directory next to the folders, so its name is taken.
+	used := map[string]struct{}{strings.ToLower(mainIndexName): {}}
 
 	for _, folder := range folders {
 		id := strings.TrimSpace(folder.ID)
@@ -105,13 +117,13 @@ func buildFolderPaths(outDir string, folders []Folder) map[string]string {
 		}
 
 		pathName := name
-		if count, ok := usedPaths[pathName]; ok {
-			count++
-			usedPaths[pathName] = count
-			pathName = fmt.Sprintf("%s_%d", name, count)
-		} else {
-			usedPaths[pathName] = 1
+		for n := 2; ; n++ {
+			if _, taken := used[strings.ToLower(pathName)]; !taken {
+				break
+			}
+			pathName = fmt.Sprintf("%s_%d", name, n)
 		}
+		used[strings.ToLower(pathName)] = struct{}{}
 
 		folderPaths[id] = filepath.Join(outDir, pathName)
 	}
@@ -142,6 +154,10 @@ func conversationMarkdownPath(folderDir string, c Conversation, index int, usedN
 	}
 
 	keyPrefix := folderDir + "\x00"
+	reservedKey := keyPrefix + reservedConversationName
+	if _, ok := usedNames[reservedKey]; !ok {
+		usedNames[reservedKey] = 1
+	}
 	key := keyPrefix + strings.ToLower(baseName)
 	count := usedNames[key] + 1
 	for {

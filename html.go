@@ -35,7 +35,10 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}
 table{border-collapse:collapse;display:block;overflow:auto}
 th,td{border:1px solid var(--border);padding:.3rem .6rem}
 blockquote{margin:0;padding-left:1rem;border-left:4px solid var(--border);color:var(--muted)}
-img{max-width:100%}`
+img{max-width:100%}
+.breadcrumb ol{display:flex;flex-wrap:wrap;gap:.25rem;margin:0 0 1rem;padding:0;list-style:none;color:var(--muted)}
+.breadcrumb li+li::before{content:"\203A";margin-right:.25rem}
+.breadcrumb li[aria-current]{color:var(--fg);overflow-wrap:anywhere}`
 
 // pageHead is the shared document head. The Content-Security-Policy blocks
 // scripts and every external resource, so a hostile chat cannot run code or
@@ -53,7 +56,18 @@ const pageHead = `<!DOCTYPE html>
 <main>
 `
 
-const pageTemplate = pageHead + `<h1>{{.Title}}</h1>
+// navBlock is the breadcrumb trail shown on every page below the main index.
+// Its links are the navigation: the first crumb is the main index, the one
+// before the current page is the parent, and the current page is the last crumb
+// with no link.
+const navBlock = `<nav class="breadcrumb" aria-label="Breadcrumb">
+<ol>
+{{range .Nav.Crumbs}}<li{{if not .Href}} aria-current="page"{{end}}>{{if .Href}}<a href="{{.Href}}">{{.Label}}</a>{{else}}{{.Label}}{{end}}</li>
+{{end}}</ol>
+</nav>
+`
+
+const pageTemplate = pageHead + navBlock + `<h1>{{.Title}}</h1>
 {{if .ID}}<p class="meta">id: <code>{{.ID}}</code></p>
 {{end}}<h2>Messages</h2>
 {{range .Messages}}<section class="message {{.RoleClass}}">
@@ -70,8 +84,17 @@ const pageTemplate = pageHead + `<h1>{{.Title}}</h1>
 </html>
 `
 
+const folderTemplate = pageHead + navBlock + `<h1>{{.Title}}</h1>
+<ul>
+{{range .Conversations}}<li><a href="{{.Href}}">{{.Title}}</a></li>
+{{end}}</ul>
+</main>
+</body>
+</html>
+`
+
 const indexTemplate = pageHead + `<h1>{{.Title}}</h1>
-{{range .Folders}}<h2>{{.Name}}</h2>
+{{range .Folders}}<h2><a href="{{.Href}}">{{.Name}}</a></h2>
 <ul>
 {{range .Conversations}}<li><a href="{{.Href}}">{{.Title}}</a></li>
 {{end}}</ul>
@@ -80,12 +103,39 @@ const indexTemplate = pageHead + `<h1>{{.Title}}</h1>
 </html>
 `
 
+// crumb is one step in the breadcrumb trail. Href is empty for the current page.
+type crumb struct {
+	Label string
+	Href  string
+}
+
+// navData is the navigation shown on pages below the main index: a breadcrumb
+// trail from the main index down to the current page.
+type navData struct {
+	Crumbs []crumb
+}
+
 // pageData is the model for one conversation page.
 type pageData struct {
 	Title       string
 	ID          string
+	Nav         navData
 	Messages    []messageData
 	Attachments []attachmentData
+}
+
+// folderLink is one conversation listed on a folder page, linked relative to
+// the folder.
+type folderLink struct {
+	Title string
+	Href  string
+}
+
+// folderPageData is the model for a folder's index.html.
+type folderPageData struct {
+	Title         string
+	Nav           navData
+	Conversations []folderLink
 }
 
 // messageData is one rendered chat turn. Body is HTML produced by the Markdown
@@ -105,16 +155,21 @@ type attachmentData struct {
 	Failure  string
 }
 
-// indexEntry is one conversation listed on the index page.
+// indexEntry is one conversation written as HTML. Folder is the folder's
+// directory name, Href is the escaped path from the output directory, and File
+// is the unescaped HTML file name inside the folder.
 type indexEntry struct {
 	Folder string
 	Title  string
 	Href   string
+	File   string
 }
 
-// indexFolder groups index entries under a folder name.
+// indexFolder groups index entries under a folder name; Href is the folder's
+// own page.
 type indexFolder struct {
 	Name          string
+	Href          string
 	Conversations []indexEntry
 }
 
@@ -128,6 +183,7 @@ type indexData struct {
 type htmlRenderer struct {
 	markdown goldmark.Markdown
 	page     *template.Template
+	folder   *template.Template
 	index    *template.Template
 }
 
@@ -138,6 +194,10 @@ func newHTMLRenderer() (*htmlRenderer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse page template: %w", err)
 	}
+	folder, err := template.New("folder").Parse(folderTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("parse folder template: %w", err)
+	}
 	index, err := template.New("index").Parse(indexTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("parse index template: %w", err)
@@ -147,7 +207,7 @@ func newHTMLRenderer() (*htmlRenderer, error) {
 		goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList),
 		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(escapeRawHTML{}, 100))),
 	)
-	return &htmlRenderer{markdown: md, page: page, index: index}, nil
+	return &htmlRenderer{markdown: md, page: page, folder: folder, index: index}, nil
 }
 
 // escapeRawHTML renders raw HTML nodes as visible, escaped text. goldmark's
@@ -212,9 +272,45 @@ func roleClass(role string) string {
 	}
 }
 
-// renderConversation renders one conversation page.
-func (h *htmlRenderer) renderConversation(title, id string, messages []Message, attachments []attachment) ([]byte, error) {
-	data := pageData{Title: title, ID: id}
+// folderIndexName is the page listing a folder's conversations. It sits in the
+// folder next to the conversation pages, so a conversation links up with it.
+const folderIndexName = reservedConversationName + ".html"
+
+// conversationNav is the breadcrumb for a conversation page: Main index >
+// folder > conversation. homeHref is the escaped path from the conversation
+// page to the main index.
+func conversationNav(folder, title, homeHref string) navData {
+	return navData{Crumbs: []crumb{
+		{Label: "Main index", Href: homeHref},
+		{Label: folder, Href: folderIndexName},
+		{Label: title},
+	}}
+}
+
+// folderNav is the breadcrumb for a folder page: Main index > folder. homeHref
+// is the escaped path from the folder page to the main index.
+func folderNav(folder, homeHref string) navData {
+	return navData{Crumbs: []crumb{{Label: "Main index", Href: homeHref}, {Label: folder}}}
+}
+
+// renderFolder renders a folder's index.html listing its conversations. Entry
+// links are relative to the folder.
+func (h *htmlRenderer) renderFolder(folder, homeHref string, entries []indexEntry) ([]byte, error) {
+	data := folderPageData{Title: folder, Nav: folderNav(folder, homeHref)}
+	for _, e := range entries {
+		data.Conversations = append(data.Conversations, folderLink{Title: e.Title, Href: escapeLinkPath(e.File)})
+	}
+
+	var buf bytes.Buffer
+	if err := h.folder.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("render folder page: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// renderConversation renders one conversation page with its navigation.
+func (h *htmlRenderer) renderConversation(title, id string, nav navData, messages []Message, attachments []attachment) ([]byte, error) {
+	data := pageData{Title: title, ID: id, Nav: nav}
 
 	for _, m := range messages {
 		role := strings.TrimSpace(m.Role)
@@ -266,7 +362,11 @@ func (h *htmlRenderer) renderIndex(entries []indexEntry) ([]byte, error) {
 
 	data := indexData{Title: indexTitle}
 	for _, name := range names {
-		data.Folders = append(data.Folders, indexFolder{Name: name, Conversations: byFolder[name]})
+		data.Folders = append(data.Folders, indexFolder{
+			Name:          name,
+			Href:          escapeLinkPath(name + "/" + folderIndexName),
+			Conversations: byFolder[name],
+		})
 	}
 
 	var buf bytes.Buffer

@@ -68,6 +68,58 @@ func TestBuildFolderPaths(t *testing.T) {
 	}
 }
 
+func TestBuildFolderPathsAvoidsCollisions(t *testing.T) {
+	folders := []Folder{
+		{ID: "1", Name: "Docs"},
+		{ID: "2", Name: "docs"},
+		{ID: "3", Name: "Docs_2"},
+		{ID: "4", Name: "index.html"},
+		{ID: "5", Name: "INDEX.HTML"},
+	}
+
+	got := buildFolderPaths("out", folders)
+
+	want := map[string]string{
+		"1": filepath.Join("out", "Docs"),
+		"2": filepath.Join("out", "docs_2"),
+		"3": filepath.Join("out", "Docs_2_2"),
+		"4": filepath.Join("out", "index.html_2"),
+		"5": filepath.Join("out", "INDEX.HTML_3"),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	seen := map[string]string{}
+	for id, p := range got {
+		key := strings.ToLower(p)
+		if other, dup := seen[key]; dup {
+			t.Errorf("folders %s and %s share a directory ignoring case: %s", id, other, p)
+		}
+		seen[key] = id
+	}
+}
+
+func TestConversationMarkdownPathReservesIndex(t *testing.T) {
+	used := map[string]int{}
+	tests := []struct {
+		folder string
+		name   string
+		want   string
+	}{
+		{"out", "index", "index_2.md"},
+		{"out", "Index", "Index_3.md"},
+		{"out", "other", "other.md"},
+		{filepath.Join("out", "Nested"), "index", "index_2.md"},
+	}
+	for i, tt := range tests {
+		got := conversationMarkdownPath(tt.folder, Conversation{Name: tt.name}, i, used)
+		if want := filepath.Join(tt.folder, tt.want); got != want {
+			t.Errorf("%s/%s: got %q, want %q", tt.folder, tt.name, got, want)
+		}
+	}
+}
+
 func TestReservedWindowsNamesAreEscapedInPaths(t *testing.T) {
 	path := conversationMarkdownPath("out", Conversation{Name: "CON"}, 0, map[string]int{})
 	if want := filepath.Join("out", "_CON.md"); path != want {

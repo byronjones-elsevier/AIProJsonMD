@@ -127,8 +127,9 @@ Example with `-format both`:
 
 ```text
 out_markdown/
-  index.html
+  index.html                      main index: every folder and conversation
   Bash Projects/
+    index.html                    folder page: this folder's conversations
     Deploy script review.md
     Deploy script review.html
     Deploy script review_2.md
@@ -136,6 +137,7 @@ out_markdown/
     assets/
       notes.txt
   Unfiled/
+    index.html
     2b3c4d5e6f_2.md
     2b3c4d5e6f_2.html
 ```
@@ -150,7 +152,19 @@ Chat content is treated as untrusted:
 - Links and images using `javascript:`, `vbscript:`, `file:`, or non-image `data:` URLs are rendered without a link.
 - Each page includes a Content-Security-Policy that blocks scripts and all external resources, so remote images in a chat are not loaded.
 
-`index.html` lists conversations grouped by folder, alphabetically, with `Unfiled` last. Like every other output file, it is kept if it already exists; use `-overwrite` to regenerate it after adding conversations.
+### Navigation
+
+The pages form three levels: the main index, a page for each folder, and the conversations. Every page below the main index shows a breadcrumb of where you are, with the current page last and not linked:
+
+```text
+Main index › Bash Projects › Deploy script review
+```
+
+- The breadcrumb is the navigation; there is no separate row of links. Every crumb except the current page is a link, so the crumb just before the current page goes up one level, and the first crumb always goes back to the main index.
+- A folder page lists that folder's conversations.
+- The main index lists every folder, each linking to its folder page, with the conversations under it, alphabetically with `Unfiled` last.
+
+All links are relative, so the output directory can be moved, zipped, or opened straight from disk. Like every other output file, the main index and the folder pages are kept if they already exist; use `-overwrite` to regenerate them after adding conversations.
 
 ## Notes
 
@@ -163,6 +177,8 @@ Chat content is treated as untrusted:
 - Existing markdown and attachment files are not overwritten unless `-overwrite` is set.
 - If an attachment reference exists in a conversation but no matching file blob is found, the Markdown output notes the missing attachment.
 
+- The name `index` is reserved in every folder, because each folder has an `index.html` page. A conversation titled `index` is written as `index_2`, in Markdown too, so the two formats always use the same names.
+- Folder names are compared without regard to case, so `Docs` and `docs` become `Docs` and `docs_2` instead of sharing one directory on macOS or Windows. A folder named `index.html` is renamed so it cannot collide with the main index file.
 - Attachment links are URL-escaped, so names with spaces or parentheses still resolve.
 - Output is private to your user: new files are created with mode `0600` and new directories with `0700`, because chat history can be sensitive. Existing files and directories keep their current permissions.
 - File and folder names are capped at 200 bytes, keeping the extension, so very long conversation names do not fail the write.
