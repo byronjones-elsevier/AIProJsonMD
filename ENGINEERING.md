@@ -38,6 +38,9 @@ Usage and flags are documented in [README.md](README.md).
 | `Makefile` | Build, test, lint, and help targets (see `make help`) |
 | `Agents.md`, `agents/` | Agent guidance and the topic files it routes to |
 | `.markdownlint.json` | Markdown lint configuration |
+| `.golangci.yml` | `golangci-lint` v2 configuration: standard linters plus `errorlint`, `gosec`, `misspell`, `revive`, `unconvert` |
+| `.github/workflows/ci.yml` | CI: tests on Linux and macOS, lint, `govulncheck`, Markdown lint |
+| `.github/dependabot.yml` | Weekly updates for pinned action SHAs and the `go`/`toolchain` directives |
 | `in_json/`, `out_markdown/` | Local input and generated output; both are gitignored |
 
 ## Architecture
@@ -125,6 +128,11 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   a missing blob, an image attachment, names with spaces and parentheses, the
   overwrite and no-overwrite paths, rejected `-assets` values, and the
   `0600`/`0700` output modes.
+- `.github/workflows/ci.yml` passes `actionlint`, every action is pinned to a
+  full commit SHA, and each CI step (`make fmt/check vet test/race build`, the
+  lint config, and the pinned markdownlint command) was run locally. The
+  workflow itself has not yet run on GitHub; the first pull request will be its
+  first real run.
 - `make vuln` (`govulncheck v1.9.0`) reports no vulnerabilities on Go 1.27.2.
   On Go 1.27.1 it reported 4 standard-library findings (GO-2026-6603, -6611,
   -6613, -6617) in `net/http` server and HTTP/2 code. The tool only calls
@@ -163,7 +171,11 @@ Not exercised:
   on Go 1.27.2 until it was upgraded.
 - `make vuln` needs network access to the Go module proxy and vulnerability
   database, so it is deliberately not part of `make all`.
-- There is no CI workflow and no pinned `golangci-lint` configuration.
+- CI has no Windows job. Add `windows-latest` to the test matrix once the tests
+  have been confirmed there.
+- `govulncheck` runs in CI on every push and pull request, so a newly published
+  advisory can fail an unrelated PR. Raise the `go.mod` `toolchain` line or
+  `GOVULNCHECK_VERSION` to clear it.
 
 ## Build, Run, and Validate
 

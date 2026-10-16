@@ -1,0 +1,14 @@
+version: 2
+
+updates:
+  # Keeps the pinned action commit SHAs in .github/workflows current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Keeps the go and toolchain directives in go.mod current.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly

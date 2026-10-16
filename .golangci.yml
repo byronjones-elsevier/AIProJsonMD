@@ -1,0 +1,20 @@
+version: "2"
+
+linters:
+  # Start from the standard set (errcheck, govet, ineffassign, staticcheck,
+  # unused) and add checks for error wrapping, security, spelling, godoc, and
+  # needless conversions.
+  default: standard
+  enable:
+    - errorlint
+    - gosec
+    - misspell
+    - revive
+    - unconvert
+  settings:
+    gosec:
+      excludes:
+        # G304 (file inclusion via variable) is inherent to this tool: it reads
+        # the user-supplied -in path and writes paths built from -out plus
+        # sanitized conversation, folder, and attachment names.
+        - G304
