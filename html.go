@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/renderer"
+	goldhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -205,7 +206,12 @@ func newHTMLRenderer() (*htmlRenderer, error) {
 
 	md := goldmark.New(
 		goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList),
-		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(escapeRawHTML{}, 100))),
+		goldmark.WithRendererOptions(
+			renderer.WithNodeRenderers(util.Prioritized(escapeRawHTML{}, 100)),
+			// A single newline in a chat message is a line break the author typed;
+			// plain Markdown would join the lines with a space.
+			goldhtml.WithHardWraps(),
+		),
 	)
 	return &htmlRenderer{markdown: md, page: page, folder: folder, index: index}, nil
 }

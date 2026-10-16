@@ -176,6 +176,15 @@ layer fails:
   file), so `Docs` and `docs` become `Docs` and `docs_2` rather than sharing a
   directory on case-insensitive filesystems. It also fixes a latent collision
   when a folder was literally named like an already-suffixed one (`Docs_2`).
+- **Single newlines render as line breaks.** goldmark runs with hard wraps on.
+  Plain Markdown joins lines with a space, but chat messages use single
+  newlines as typed line breaks; with the default, a user message listing two
+  commands on separate lines showed them on one line (found by viewing a
+  generated page in Chrome). In the sample export, 52 of 177 messages had
+  lines that plain Markdown would have joined. Blank lines, code blocks, and
+  lists are unaffected. The cost is that an assistant message hard-wrapped at a
+  fixed column in its source would show ragged line ends; none of the viewed
+  pages did. The `.md` files are unchanged.
 - **One extraction, two renderers.** Attachments are extracted once into a
   neutral `attachment` list that both renderers read, so the Markdown output
   stays byte-identical to the pre-HTML version and the two formats cannot
@@ -263,10 +272,11 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
 
 Not exercised:
 
-- Viewing the pages in a browser. Structure, safety, navigation, and link
-  integrity were checked programmatically and by unit tests, but the visual
-  styling (breadcrumb layout, dark mode, wide tables, long code lines) has not
-  been looked at.
+- Some browser views. The main index (full and narrow window), a conversation
+  page's breadcrumb, headings, message boxes, lists, and a code block with a
+  long line were viewed in Chrome in light mode. Dark mode, tables, images, and
+  very long breadcrumbs have not been looked at. Safety, navigation, and link
+  integrity were checked programmatically and by unit tests.
 
 - `make install`.
 - Windows. Filename sanitizing covers its reserved characters and reserved

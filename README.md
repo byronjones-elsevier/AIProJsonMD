@@ -144,7 +144,7 @@ out_markdown/
 
 ## HTML Output
 
-Each HTML file is a standalone page with embedded CSS, no JavaScript, and a light or dark theme that follows your system setting. Message text is rendered from Markdown, including fenced code blocks, lists, tables, headings, links, and strikethrough. Image attachments appear inline; other attachments are links into `assets/`.
+Each HTML file is a standalone page with embedded CSS, no JavaScript, and a light or dark theme that follows your system setting. Message text is rendered from Markdown, including fenced code blocks, lists, tables, headings, links, and strikethrough. A single newline in a message is kept as a line break, as it would be in the chat, and a blank line starts a new paragraph. Image attachments appear inline; other attachments are links into `assets/`.
 
 Chat content is treated as untrusted:
 
