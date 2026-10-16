@@ -219,7 +219,6 @@ func TestRenderConversation(t *testing.T) {
 
 	for _, want := range []string{
 		"<!DOCTYPE html>",
-		`<meta http-equiv="Content-Security-Policy" content="default-src 'none'`,
 		"<title>&lt;b&gt;Title&lt;/b&gt; &amp; more</title>",
 		"<h1>&lt;b&gt;Title&lt;/b&gt; &amp; more</h1>",
 		"<code>c1</code>",
@@ -386,8 +385,13 @@ func TestRunHTMLFormat(t *testing.T) {
 			t.Errorf("first conversation missing %q", want)
 		}
 	}
-	if strings.Contains(first, "<script") {
-		t.Errorf("first conversation contains an unescaped script tag")
+	// The chat's own <script> is escaped. The only script element is the
+	// copy-button script, present because this conversation has a code block.
+	if n := strings.Count(first, "<script"); n != 1 {
+		t.Errorf("first conversation has %d script elements, want exactly the copy-button script", n)
+	}
+	if strings.Contains(first, "<script>alert(1)") {
+		t.Errorf("first conversation contains the chat's script tag unescaped")
 	}
 
 	second := readFile(t, filepath.Join(outDir, "Project A", "First_ Chat_2.html"))

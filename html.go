@@ -38,17 +38,24 @@ blockquote{margin:0;padding-left:1rem;border-left:4px solid var(--border);color:
 img{max-width:100%}
 .breadcrumb ol{display:flex;flex-wrap:wrap;gap:.25rem;margin:0 0 1rem;padding:0;list-style:none;color:var(--muted)}
 .breadcrumb li+li::before{content:"\203A";margin-right:.25rem}
-.breadcrumb li[aria-current]{color:var(--fg);overflow-wrap:anywhere}`
+.breadcrumb li[aria-current]{color:var(--fg);overflow-wrap:anywhere}
+.code-block{position:relative}
+.copy-button{position:absolute;top:.4rem;right:.4rem;padding:.15rem .5rem;font:inherit;font-size:.8rem;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;opacity:.75}
+.copy-button:hover,.copy-button:focus-visible{opacity:1}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media print{.copy-button{display:none}}`
 
-// pageHead is the shared document head. The Content-Security-Policy blocks
-// scripts and every external resource, so a hostile chat cannot run code or
-// phone home even if an escaping bug were introduced.
+// pageHead is the shared document head. The Content-Security-Policy (see
+// contentSecurityPolicy) blocks every external resource and allows no script
+// except the copy-button script, by hash, on pages with a code block, so a
+// hostile chat cannot run code or phone home even if an escaping bug were
+// introduced.
 const pageHead = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="{{.CSP}}">
 <title>{{.Title}}</title>
 <style>` + pageStyle + `</style>
 </head>
@@ -80,7 +87,8 @@ const pageTemplate = pageHead + navBlock + `<h1>{{.Title}}</h1>
 {{range .Attachments}}<li><strong>{{.Name}}</strong>: {{if .Failure}}<em>{{.Failure}}</em>{{else}}<a href="{{.Href}}">{{if .IsImage}}<img src="{{.Href}}" alt="{{.Name}}" loading="lazy"><br>{{end}}{{.LinkText}}</a>{{end}}</li>
 {{end}}</ul>
 {{end}}</main>
-</body>
+{{if .Script}}<script>{{.Script}}</script>
+{{end}}</body>
 </html>
 `
 
@@ -119,6 +127,8 @@ type navData struct {
 type pageData struct {
 	Title       string
 	ID          string
+	CSP         string
+	Script      template.JS
 	Nav         navData
 	Messages    []messageData
 	Attachments []attachmentData
@@ -134,6 +144,7 @@ type folderLink struct {
 // folderPageData is the model for a folder's index.html.
 type folderPageData struct {
 	Title         string
+	CSP           string
 	Nav           navData
 	Conversations []folderLink
 }
@@ -176,6 +187,7 @@ type indexFolder struct {
 // indexData is the model for index.html.
 type indexData struct {
 	Title   string
+	CSP     string
 	Folders []indexFolder
 }
 
@@ -259,6 +271,12 @@ func (h *htmlRenderer) markdownToHTML(content string) (template.HTML, error) {
 	return template.HTML(buf.String()), nil //nolint:gosec // goldmark output with raw HTML escaped by escapeRawHTML
 }
 
+// hasCodeBlock reports whether rendered message HTML contains a code block,
+// which is what the copy-button script acts on.
+func hasCodeBlock(body template.HTML) bool {
+	return strings.Contains(string(body), "<pre><code")
+}
+
 // roleClass maps a chat role to a fixed CSS class, so arbitrary role text from
 // the export never reaches an attribute.
 func roleClass(role string) string {
@@ -296,7 +314,7 @@ func folderNav(folder, homeHref string) navData {
 // renderFolder renders a folder's index.html listing its conversations. Entry
 // links are relative to the folder.
 func (h *htmlRenderer) renderFolder(folder, homeHref string, entries []indexEntry) ([]byte, error) {
-	data := folderPageData{Title: folder, Nav: folderNav(folder, homeHref)}
+	data := folderPageData{Title: folder, CSP: baseCSP, Nav: folderNav(folder, homeHref)}
 	for _, e := range entries {
 		data.Conversations = append(data.Conversations, folderLink{Title: e.Title, Href: escapeLinkPath(e.File)})
 	}
@@ -322,7 +340,11 @@ func (h *htmlRenderer) renderConversation(title, id string, nav navData, message
 			return nil, err
 		}
 		data.Messages = append(data.Messages, messageData{Role: role, RoleClass: roleClass(role), Body: body})
+		if hasCodeBlock(body) {
+			data.Script = template.JS(copyScript) //nolint:gosec // a constant we control; the page policy allows exactly this script by hash
+		}
 	}
+	data.CSP = contentSecurityPolicy(string(data.Script))
 
 	for _, a := range attachments {
 		item := attachmentData{Name: a.Name, Failure: a.Failure}
@@ -360,7 +382,7 @@ func (h *htmlRenderer) renderIndex(entries []indexEntry) ([]byte, error) {
 		return strings.ToLower(names[i]) < strings.ToLower(names[j])
 	})
 
-	data := indexData{Title: indexTitle}
+	data := indexData{Title: indexTitle, CSP: baseCSP}
 	for _, name := range names {
 		data.Folders = append(data.Folders, indexFolder{
 			Name:          name,

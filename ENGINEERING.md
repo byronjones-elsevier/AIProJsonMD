@@ -47,7 +47,9 @@ Usage and flags are documented in [README.md](README.md).
 | `main_test.go` | Original tests for `writeFile`, `attachmentPayload`, `decodeBase64Payload`, `conversationMarkdownPath` |
 | `files_test.go` | Table-driven tests for the `files.go` helpers |
 | `convert_test.go` | Tests for `convert.go` helpers and end-to-end Markdown `run` tests on a synthetic export |
+| `copy.go` | The copy-button script (`copyScript`) and the Content-Security-Policy builder (`contentSecurityPolicy`) |
 | `html_test.go` | HTML tests: Markdown rendering, raw-HTML and URL safety, page and index output, `-format` runs |
+| `copy_test.go` | Copy-button tests: script only on pages with code, hash matches the served bytes, chat content cannot add scripts |
 | `nav_test.go` | Navigation tests: breadcrumb and up/home links, folder pages, every local link in a generated site resolving, reserved `index` names |
 | `go.mod`, `go.sum` | Module definition with the goldmark dependency and its checksums |
 | `Makefile` | Build, test, lint, and help targets (see `make help`) |
@@ -108,8 +110,11 @@ layer fails:
   maps it to a fixed set.
 - Each page carries a `Content-Security-Policy` meta tag
   (`default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;
-  base-uri 'none'`) and contains no JavaScript, so scripts and external
-  resources are blocked even if an escaping bug appeared.
+  base-uri 'none'`), so external resources are blocked even if an escaping bug
+  appeared. Pages with no code block contain no script and use exactly that
+  policy. Pages with a code block add `script-src 'sha256-<hash>'` for the
+  copy-button script only; nothing else may run, and `unsafe-inline` and
+  `unsafe-eval` are never granted for scripts.
 - Image attachments are shown inline from the local `assets/` directory.
   External images referenced in Markdown are blocked by the policy.
 
@@ -149,6 +154,27 @@ layer fails:
   export, about 30% of messages had fenced code and nearly half had lists. This
   ended the earlier "no third-party dependencies" position, so `go.sum`,
   Dependabot's `gomod` updates, and `govulncheck` now cover a real dependency.
+- **Copy buttons are a hash-pinned inline script.** This is the first
+  JavaScript in the output, added for a Copy button on every code block (26 of
+  the 40 conversation pages in the sample export have one). The script adds the buttons, so
+  a page opened with scripts disabled shows plain code and no dead buttons. It
+  is included only on pages that have a code block, and the page's CSP allows
+  exactly that script by its SHA-256 hash, computed from the same bytes that are
+  served (`copyScript` is passed to the template as `template.JS`, which
+  `html/template` emits unchanged; a test compares the served bytes and the
+  hash). It reads the block with `textContent`, uses
+  `navigator.clipboard.writeText` in secure contexts, and falls back to a
+  hidden textarea with `execCommand("copy")` for `file://` pages in browsers
+  that restrict the Clipboard API. The button is a real `<button>` with an
+  `aria-label`, and results are announced through a `role="status"` region.
+  Rejected: loosening the policy to `script-src 'unsafe-inline'`, which would let
+  any injected script run; an external `.js` file, which adds a file to every
+  output tree and needs `'self'` scripts allowed; server-rendered buttons, which
+  are dead without script; and putting the script on every page, which grants
+  script permission where it is not needed. The page that inspired this
+  feature (jordemort.dev) injects its buttons with script and uses
+  `navigator.clipboard` only; this version adds the fallback, accessibility
+  attributes, and the hash-pinned policy.
 - **`-format md|html|both`, default `md`.** Existing invocations behave exactly
   as before. Rejected: a boolean `-html` flag, which cannot produce HTML only.
 - **Three-level HTML hierarchy with navigation.** The main `index.html` lists
