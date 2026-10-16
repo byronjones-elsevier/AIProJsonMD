@@ -137,15 +137,19 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   matched (47 files each). One Markdown file differed: three attachment links
   with spaces in the name are now URL-escaped, as intended. All other Markdown
   and attachment files were byte-identical.
+- Output of `main` before the hardening (`b99089e`) and the hardened build,
+  both run on the same real 40-conversation export and diffed. All 47 files
+  were byte-identical. The longest file name was 42 bytes in both, so the
+  200-byte cap did not trigger. The only difference was permissions: every file
+  went from `0644` to `0600`, and every directory from `0754` to `0700`.
 
 Not exercised:
 
 - `make install`.
 - Windows. Filename sanitizing covers its reserved characters but not reserved
   names such as `CON`, and the permission test is skipped there.
-- A real-export run after the 0600/0700 and name-cap changes. Names under
-  200 bytes are unaffected, so output content should match the earlier
-  comparison, but it was not diffed again.
+- The 200-byte name cap on real data, since no name in the sample export is
+  near the limit. It is covered by unit tests only.
 
 ## Remaining Risks and Possible Work
 
