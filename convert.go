@@ -101,9 +101,15 @@ func collectConversationFiles(c Conversation) []FileRef {
 func buildFolderPaths(outDir string, folders []Folder) map[string]string {
 	folderPaths := make(map[string]string, len(folders))
 	// Names are compared case-insensitively so folders that differ only in case
-	// do not share a directory on case-insensitive filesystems. The main index
-	// file lives in the output directory next to the folders, so its name is taken.
-	used := map[string]struct{}{strings.ToLower(mainIndexName): {}}
+	// do not share a directory on case-insensitive filesystems. Two names are
+	// taken before any folder is named: the main index file, which lives in the
+	// output directory next to the folders, and the Unfiled directory, which is
+	// for conversations without a mapped folder. A folder with either name gets
+	// a numeric suffix like any other duplicate.
+	used := map[string]struct{}{
+		strings.ToLower(mainIndexName): {},
+		strings.ToLower(unfiledName):   {},
+	}
 
 	for _, folder := range folders {
 		id := strings.TrimSpace(folder.ID)

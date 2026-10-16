@@ -32,23 +32,152 @@ Each Application project should have:
 
 For each subfile that you load, if it is relevant to the project, copy it to the project level agents folder, and update AGENTS.md "Topic Routing" table, linking it to the subfile.
 
-## Engineering Handover Notes
+## Project Specification, Handoff, and Changelog
 
-Each application project should have an `ENGINEERING.md` in the root: handover
-notes for the engineer or agent who continues the work. Read it before making
-changes, and update it in the same change set when architecture, decisions,
-verification status, or known risks change. Include:
+Each application project has three living documents in its root, in addition to
+`README.md` and `AGENTS.md`. Together they let an engineer or agent who has not
+seen the code understand the project, rebuild it, and continue the work.
 
-- What this is: purpose, scope, and user-facing behavior.
-- Tech stack and key dependencies.
-- File map with a one-line purpose per file.
-- Architecture: module responsibilities and data flow.
-- Key decisions and their rationale, including rejected alternatives.
-- Verified: what was tested, how, and when; call out anything not exercised.
-- Remaining risks, known gaps, and possible future work.
-- Build, run, and validation commands.
+| File | Role | Question it answers |
+| --- | --- | --- |
+| `ENGINEERING.md` | Primary specification | What must the system do, and how? |
+| `HANDOFF.md` | Outstanding work | What is left, and where do I resume? |
+| `CHANGELOG.md` | History of all work | What was done, on which branch, when, and by whom? |
 
-Link `ENGINEERING.md` from `README.md` and `AGENTS.md`.
+Link all three from `README.md` and `AGENTS.md`.
+
+### Precedence and reading order
+
+- `ENGINEERING.md` is the source of truth for behavior and design. When the
+  code, `README.md`, or any other document disagrees with it, treat that as a
+  defect: decide which is correct, then make them agree in the same change set.
+  Change requirements in `ENGINEERING.md` first, or in the same change set as
+  the code, never only in the code.
+- `README.md` is the user-facing summary of the specification and `AGENTS.md`
+  routes agents; neither may contradict `ENGINEERING.md`.
+- At the start of a session read `AGENTS.md`, then `ENGINEERING.md`, then
+  `HANDOFF.md`, then the newest `CHANGELOG.md` entries.
+- At the end of a session, and whenever work is paused or abandoned, update
+  `HANDOFF.md` and make sure the `CHANGELOG.md` entry for the branch is current.
+
+### ENGINEERING.md: primary specification
+
+Write it so that someone who has not seen the code could build an equivalent
+project from this file alone, and verify that they did. Describe the system as
+it is now; history belongs in `CHANGELOG.md` and unfinished work in
+`HANDOFF.md`. Do not leave `TODO` markers in it.
+
+- State requirements with RFC 2119 words (MUST, SHOULD, MAY) and give each a
+  stable ID (for example `REQ-OUT-3`) so tests, changelog entries, and handoff
+  items can refer to it. Keep rationale in plain prose next to the requirement.
+- Be exact. Where behavior is non-trivial, give the rules step by step,
+  including edge cases, ordering, tie-breaks, limits, defaults, and exact
+  user-visible strings, plus at least one worked example.
+- Start with a header recording the status and the date and commit it was last
+  reviewed against the code.
+
+Required sections:
+
+1. Overview: purpose, scope, non-goals, and audience.
+2. Requirements: functional and non-functional (security, privacy,
+   compatibility, accessibility, performance), each with an ID.
+3. External interfaces: commands, flags, environment variables, configuration,
+   exit codes, and the stdout and stderr contract, with defaults and validation.
+4. Data: input formats and their known quirks, output formats with exact
+   structure, directory and file layout, and naming rules.
+5. Behavior and algorithms: every non-trivial transformation, precisely enough
+   to implement.
+6. Architecture: modules and their responsibilities, data flow, key types, and a
+   file map with a one-line purpose per file.
+7. Security and privacy model: trust boundaries, untrusted inputs, threats,
+   mitigations, and permissions.
+8. Error handling and logging: failure modes, which are fatal, messages, and
+   exit statuses.
+9. Technology and dependencies: language and runtime versions, and each
+   dependency with its version and the reason it is used.
+10. Build, run, test, and release: commands, task-runner targets, CI, and
+    pinned tool versions.
+11. Verification plan: acceptance criteria mapped to requirement IDs and to
+    tests, how to validate against realistic data, and required coverage.
+    Results of running it go in `CHANGELOG.md`, not here.
+12. Decisions: for each, the context, the choice, the rationale, the rejected
+    alternatives, and the consequences. Mark a decision superseded rather than
+    deleting it.
+
+Check the specification periodically by giving a reviewer only this file and
+asking what they would have to guess to build the project. Answer every gap in
+the file. If the reviewer finds that the specification disagrees with the code,
+do not quietly document the wrong behavior: fix whichever is wrong, or record
+the disagreement as a stated exception in the requirement and as an item in
+`HANDOFF.md`.
+
+Keep the specification true with tests. Where it quotes the code or output
+literally (templates, scripts, stylesheets, pinned versions, lists, worked
+examples), add a test that reads the specification and fails when the quoted
+text drifts from the code, and make the worked example executable. Show that
+such a test can fail by altering the specification once and restoring it.
+
+### HANDOFF.md: outstanding work
+
+The single place for work that is not done and the context needed to resume it,
+for the next session, whether by the same person or someone else. It holds only
+open items; when an item is finished, remove it and record it in `CHANGELOG.md`.
+Keep it short and current: a stale item is worse than none. Date every entry and
+name the owner.
+
+Required sections:
+
+1. Status: as of what timestamp, on which branch and commit, and whether the
+   build, tests, and CI are passing.
+2. Resume here: the exact next step and the commands to run first.
+3. In progress: for each branch or pull request in flight, its state,
+   uncommitted or unpublished changes, and what is left.
+4. Outstanding work: a prioritized list. Each item has an ID, a description, the
+   reason, acceptance criteria (referring to requirement IDs where they exist),
+   its owner, and what blocks it.
+5. Decisions needed: the question, the options, and a recommendation.
+6. Known issues, risks, and unverified areas.
+7. Environment and access notes: tooling quirks, who performs which step (for
+   example who pushes), and where credentials live. Never record secrets.
+8. Cleanup debt: temporary files, stale branches, and unpublished changes.
+
+### CHANGELOG.md: history of all work
+
+A complete record of every unit of work: each branch and pull request, what it
+did, when, and by whom. Newest first. Include direct commits to the default
+branch and work that predates the file; when adopting this standard, backfill
+from the repository history. Keep abandoned and superseded work listed with its
+status. Use one entry per branch, even when branches are stacked.
+
+Start an entry when the branch is created, keep it current while work
+proceeds, and finalize it before the pull request is opened. Use this template:
+
+```markdown
+### <branch-name>: <one-line summary> (PR #<n>)
+
+- Branch: `<branch>`, base `<base>`; PR #<n>; commits `<first-sha>..<last-sha>`
+- Status: open | merged | abandoned | superseded
+- Started: <UTC timestamp of the first commit>
+- Last commit: <UTC timestamp>
+- Merged: <UTC timestamp> (omit if not merged)
+- Worked on by: <person> (<role>); <AI agent and model> (<tool>, <role>)
+- What it did: <behavior and design changes, as bullets>
+- Spec and docs: <ENGINEERING.md sections and requirement IDs changed>
+- Verification: <what was run and the result; what was not exercised>
+- Notes: <surprises, reverts, incidents, and items moved to HANDOFF.md>
+```
+
+- Write every timestamp as ISO 8601 in UTC, for example `2026-10-16T15:30:01Z`.
+- Name each person once by their canonical name and GitHub handle, and list
+  their other git identities as aliases. Give roles such as author, reviewer,
+  pusher, and merger.
+- For an AI agent, record the product, the model and version, and the tool it
+  ran in, for example "Claude Sonnet 5.5, via Claude Code". Write "not recorded"
+  rather than guessing, and credit tools such as Copilot Autofix when a commit
+  trailer shows them.
+- Never record secrets, and do not copy private data into an entry.
+- Correct an entry by amending it with a dated note, not by silently rewriting
+  what happened.
 
 ## Documentation
 

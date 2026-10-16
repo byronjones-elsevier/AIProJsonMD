@@ -75,6 +75,9 @@ func TestBuildFolderPathsAvoidsCollisions(t *testing.T) {
 		{ID: "3", Name: "Docs_2"},
 		{ID: "4", Name: "index.html"},
 		{ID: "5", Name: "INDEX.HTML"},
+		{ID: "6", Name: "Unfiled"},
+		{ID: "7", Name: "unfiled"},
+		{ID: "8", Name: "UNFILED_2"},
 	}
 
 	got := buildFolderPaths("out", folders)
@@ -85,6 +88,9 @@ func TestBuildFolderPathsAvoidsCollisions(t *testing.T) {
 		"3": filepath.Join("out", "Docs_2_2"),
 		"4": filepath.Join("out", "index.html_2"),
 		"5": filepath.Join("out", "INDEX.HTML_3"),
+		"6": filepath.Join("out", "Unfiled_2"),
+		"7": filepath.Join("out", "unfiled_3"),
+		"8": filepath.Join("out", "UNFILED_2_2"),
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)

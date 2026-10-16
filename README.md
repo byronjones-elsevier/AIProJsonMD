@@ -53,7 +53,7 @@ errors are logged to stderr, and a fatal error exits with status 1.
 - `-out`: directory for generated files. Default: `out_markdown`
 - `-format`: output format. `md` writes Markdown only, `html` writes HTML and `index.html` only, `both` writes all of them. Default: `md`
 - `-assets`: name of the per-folder assets directory created inside each output folder. Default: `assets`. Must be a single directory name: empty values, `.`, `..`, and anything containing a path separator are rejected.
-- `-overwrite`: overwrite existing output and attachment files, including `index.html`. Default: `false`
+- `-overwrite`: replace existing Markdown, HTML, and index files (including `index.html`) instead of keeping them. An attachment that already exists with different content is never replaced; the new one gets a numeric suffix. Default: `false`
 
 ## Expected Input Shape
 
@@ -182,11 +182,11 @@ All links are relative, so the output directory can be moved, zipped, or opened 
 - Attachment file names are sanitized for filesystem safety. Windows reserved device names such as `CON` or `NUL` get a leading underscore, so output can be copied to Windows.
 - If multiple attachments in the same folder would produce the same filename, the program appends a numeric suffix to keep them distinct.
 - If an image attachment has no file extension, the program attempts to infer one from `fileType` or the decoded bytes.
-- Existing markdown and attachment files are not overwritten unless `-overwrite` is set.
+- Existing output files are kept unless `-overwrite` is set.
 - If an attachment reference exists in a conversation but no matching file blob is found, the Markdown output notes the missing attachment.
 
 - The name `index` is reserved in every folder, because each folder has an `index.html` page. A conversation titled `index` is written as `index_2`, in Markdown too, so the two formats always use the same names.
-- Folder names are compared without regard to case, so `Docs` and `docs` become `Docs` and `docs_2` instead of sharing one directory on macOS or Windows. A folder named `index.html` is renamed so it cannot collide with the main index file.
+- Folder names are compared without regard to case, so `Docs` and `docs` become `Docs` and `docs_2` instead of sharing one directory on macOS or Windows. A folder named `index.html` or `Unfiled` (in any capitalization) is renamed with a numeric suffix, for example `Unfiled_2`: `index.html` is the main index file, and the `Unfiled` directory is only for conversations that have no folder.
 - Attachment links are URL-escaped, so names with spaces or parentheses still resolve.
 - Output is private to your user: new files are created with mode `0600` and new directories with `0700`, because chat history can be sensitive. Existing files and directories keep their current permissions.
 - File and folder names are capped at 200 bytes, keeping the extension, so very long conversation names do not fail the write.
@@ -210,8 +210,12 @@ Tests use the standard library `testing` package and live next to the code.
 `run` is covered end to end with a synthetic export built in the test, so no
 real chat history is needed.
 
-## Engineering Notes
+## Specification and project history
 
-See [ENGINEERING.md](ENGINEERING.md) for architecture, key decisions,
-verification status, and known risks. Agent guidance lives in
-[AGENTS.md](AGENTS.md).
+- [ENGINEERING.md](ENGINEERING.md) is the primary specification: requirements,
+  interfaces, exact behavior, architecture, security model, build and test
+  plan, and decisions. This README summarizes it.
+- [HANDOFF.md](HANDOFF.md) lists outstanding work and how to resume it.
+- [CHANGELOG.md](CHANGELOG.md) records every branch and pull request, what it
+  did, when, and by whom.
+- Agent guidance lives in [AGENTS.md](AGENTS.md).
