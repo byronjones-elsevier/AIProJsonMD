@@ -135,7 +135,7 @@ out_markdown/
 - Conversation file names come from the sanitized conversation name. A duplicate name in the same folder gets a `_2`, `_3`, ... suffix. A conversation with no name falls back to a short SHA-256 hash of its ID plus its position in the export.
 - Folder names are taken from the export `folders` list and sanitized for filesystem use.
 - Attachment references are de-duplicated per conversation before extraction.
-- Attachment file names are sanitized for filesystem safety.
+- Attachment file names are sanitized for filesystem safety. Windows reserved device names such as `CON` or `NUL` get a leading underscore, so output can be copied to Windows.
 - If multiple attachments in the same folder would produce the same filename, the program appends a numeric suffix to keep them distinct.
 - If an image attachment has no file extension, the program attempts to infer one from `fileType` or the decoded bytes.
 - Existing markdown and attachment files are not overwritten unless `-overwrite` is set.

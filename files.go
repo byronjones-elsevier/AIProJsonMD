@@ -87,7 +87,29 @@ func sanitizeFilename(s string) string {
 		return ""
 	}
 	s = invalidFilenameChars.ReplaceAllString(s, "_")
-	return truncateName(strings.Trim(s, "."), maxNameBytes)
+	s = strings.TrimRight(strings.TrimLeft(s, "."), ". ")
+	return truncateName(guardReservedName(s), maxNameBytes)
+}
+
+// windowsReservedNames are device names Windows refuses as a file name, with
+// or without an extension (for example "CON" and "con.txt").
+var windowsReservedNames = map[string]struct{}{
+	"CON": {}, "PRN": {}, "AUX": {}, "NUL": {},
+	"COM1": {}, "COM2": {}, "COM3": {}, "COM4": {}, "COM5": {},
+	"COM6": {}, "COM7": {}, "COM8": {}, "COM9": {},
+	"LPT1": {}, "LPT2": {}, "LPT3": {}, "LPT4": {}, "LPT5": {},
+	"LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
+}
+
+// guardReservedName prefixes an underscore when the part of name before its
+// first dot is a Windows reserved device name, so the output can be copied to
+// or created on Windows.
+func guardReservedName(name string) string {
+	stem, _, _ := strings.Cut(name, ".")
+	if _, reserved := windowsReservedNames[strings.ToUpper(strings.TrimRight(stem, " "))]; reserved {
+		return "_" + name
+	}
+	return name
 }
 
 // writeFile writes data to path and reports whether the file was written.

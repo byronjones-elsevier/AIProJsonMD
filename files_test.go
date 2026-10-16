@@ -25,6 +25,16 @@ func TestSanitizeFilename(t *testing.T) {
 		{"surrounding dots", "..hidden..", "hidden"},
 		{"only dots", "..", ""},
 		{"keeps inner spaces and parens", "my notes (1).txt", "my notes (1).txt"},
+		{"trailing dot and space", "a .", "a"},
+		{"reserved name", "CON", "_CON"},
+		{"reserved name lowercase", "nul", "_nul"},
+		{"reserved name with extension", "aux.txt", "_aux.txt"},
+		{"reserved name with several dots", "com1.tar.gz", "_com1.tar.gz"},
+		{"reserved device number", "LPT9", "_LPT9"},
+		{"reserved name with trailing space before dot", "PRN .txt", "_PRN .txt"},
+		{"COM0 is not reserved", "COM0", "COM0"},
+		{"reserved name as prefix is fine", "console.txt", "console.txt"},
+		{"reserved name inside is fine", "my CON notes", "my CON notes"},
 	}
 
 	for _, tt := range tests {

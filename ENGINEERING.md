@@ -146,8 +146,10 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
 Not exercised:
 
 - `make install`.
-- Windows. Filename sanitizing covers its reserved characters but not reserved
-  names such as `CON`, and the permission test is skipped there.
+- Windows. Filename sanitizing covers its reserved characters and reserved
+  device names (`CON`, `NUL`, `COM1`, ... get a leading `_`) in unit tests, but
+  the tool has not been run on Windows, and the permission test is skipped
+  there.
 - The 200-byte name cap on real data, since no name in the sample export is
   near the limit. It is covered by unit tests only.
 
@@ -161,7 +163,6 @@ Not exercised:
   on Go 1.27.2 until it was upgraded.
 - `make vuln` needs network access to the Go module proxy and vulnerability
   database, so it is deliberately not part of `make all`.
-- Windows reserved file names (`CON`, `NUL`, ...) are not handled.
 - There is no CI workflow and no pinned `golangci-lint` configuration.
 
 ## Build, Run, and Validate
