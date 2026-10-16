@@ -59,15 +59,6 @@ the changelog.
 - Acceptance: add `windows-latest` to the CI test matrix and make it pass, or
   record why a test cannot run there; confirm output paths and links on Windows.
 
-### H-03: Reserve the folder name `Unfiled` (owner: Byron decides, Agent implements)
-
-- Why: an export folder literally named `Unfiled` shares the `Unfiled`
-  directory with unfiled conversations (specification 5.2). File names stay
-  unique, but the two groups merge into one folder page.
-- Acceptance: either keep and document (already documented), or reserve the
-  name in the folder name set so such a folder becomes `Unfiled_2`. Add a test
-  and update section 5.2, REQ-NAME-6, and a decision.
-
 ### H-04: Refreshing index pages needs `-overwrite` (owner: Byron decides)
 
 - Why: index pages follow the same keep-existing rule as other files, so
@@ -110,7 +101,6 @@ the changelog.
 
 | Question | Options | Recommendation |
 | --- | --- | --- |
-| H-03: reserve `Unfiled`? | Keep and document; reserve the name. | Reserve it: it removes a surprising merge for the cost of one set entry. |
 | H-04: how should index pages refresh? | Keep as is; always regenerate index pages; add a flag. | Always regenerate the index and folder pages, since they are derived from the whole run and replacing them destroys nothing; keep `-overwrite` for conversation and attachment files. |
 | H-05: where should `govulncheck` run? | Every PR; schedule plus `go.mod` changes; warn only. | Keep it on every PR while the project is small; revisit if it blocks unrelated work. |
 

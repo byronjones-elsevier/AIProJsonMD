@@ -84,10 +84,10 @@ export format, and a graphical interface.
 - REQ-NAME-4: Conversation file names MUST be unique within a folder, ignoring
   case (section 5.4).
 - REQ-NAME-5: The conversation name `index` MUST be reserved in every folder.
-- REQ-NAME-6: Folder directory names MUST be unique ignoring case, and the name
-  `index.html` MUST NOT be used for a folder (section 5.2). Known exception: the
-  name `Unfiled` is not reserved, so an export folder with that name, in any
-  capitalization, can share the `Unfiled` directory (see HANDOFF.md, H-03).
+- REQ-NAME-6: Folder directory names MUST be unique ignoring case. The names
+  `index.html` and `Unfiled` (in any capitalization) are reserved: an export
+  folder with one of those names MUST get a numeric suffix (section 5.2). The
+  `Unfiled` directory holds only conversations without a mapped folder.
 
 ### 2.4 Markdown output
 
@@ -664,7 +664,7 @@ For each export folder, in `folders` order, skipping blank ids:
 
 1. `name` = `sanitize(folder.name)` (5.3); if that is empty, use `folder`.
 2. Keep a set of used names, compared lower-cased. It starts containing
-   `index.html`.
+   `index.html` and `Unfiled`.
 3. `pathName` = `name`. While the lower-cased `pathName` is in the set, set
    `pathName` to `<name>_<n>` for n = 2, 3, and so on. Add the final lower-cased
    `pathName` to the set.
@@ -676,19 +676,15 @@ folder that has no conversations is not created and does not appear on any page.
 
 A conversation's folder is found from `folderId` if it is a string (trimmed)
 that matches a mapped folder id. Otherwise the directory is `<out>/Unfiled`.
-`Unfiled` is not reserved in the set, so an export folder named `Unfiled` (in
-any capitalization) is not renamed and can share that directory with unfiled
-conversations; file names stay unique because they are tracked per directory,
-but on a case-insensitive filesystem a folder named `unfiled` shares the
-directory too. See HANDOFF.md, H-03.
+Because `Unfiled` is in the starting set, an export folder named `Unfiled` in any
+capitalization is renamed by step 3 to the first free suffixed name (`Unfiled_2`,
+`unfiled_3`, and so on), so `<out>/Unfiled` holds only conversations that have
+no mapped folder.
 
 On the main index, "`Unfiled` last" is an exact, case-sensitive match on the
-directory name `Unfiled`. An export folder named exactly `Unfiled` has the
-directory `Unfiled`, so its conversations and the unmapped ones form one group,
-one `<h2>`, and one folder page. On a case-sensitive filesystem a folder whose
-directory is `unfiled` is a separate group sorted alphabetically with the
-others; two groups whose lower-cased names are equal can arise only in that
-case, and their relative order is not specified.
+directory name `Unfiled`. A renamed folder such as `Unfiled_2` is sorted
+alphabetically with the others. Directory names are unique ignoring case, so no
+two groups have the same lower-cased name and the order is fully determined.
 
 ### 5.3 Sanitizing a name
 
@@ -1262,7 +1258,7 @@ Each requirement group is verified by these tests (all in package `main`).
 | REQ-OUT-1, 2 | `TestRunConvertsExport`, `TestRunOverwriteBehavior`, `TestRunHTMLOverwriteBehavior`, `TestRunHTMLFolderPagesFollowOverwriteRules`, `TestWriteFile_NoOverwritePreservesExisting`, `TestWriteFile_OverwriteReplacesExisting`, `TestWriteFileReportsWhetherItWrote`, `TestWriteFileMissingDirectoryFails` |
 | REQ-OUT-3 | `TestRunCreatesPrivateOutput`, `TestRunHTMLOutputIsPrivate` |
 | REQ-NAME-1 to 3 | `TestSanitizeFilename`, `TestTruncateName`, `TestSanitizeFilenameCapsLength`, `TestReservedWindowsNamesAreEscapedInPaths` |
-| REQ-NAME-4 to 6 | `TestConversationMarkdownPath_*`, `TestConversationMarkdownPathReservesIndex`, `TestBuildFolderPaths`, `TestBuildFolderPathsAvoidsCollisions`, `TestRunReservesIndexNames` |
+| REQ-NAME-4 to 6 | `TestRunUnfiledNameIsReserved`, `TestConversationMarkdownPath_*`, `TestConversationMarkdownPathReservesIndex`, `TestBuildFolderPaths`, `TestBuildFolderPathsAvoidsCollisions`, `TestRunReservesIndexNames` |
 | REQ-MD-1, 2 | `TestRunConvertsExport`, `TestRunMarkdownOnlyWritesNoHTML`, `TestRunBothFormats` |
 | REQ-ATT-1 to 4 | `TestCollectConversationFiles`, `TestCollectConversationFilesEmpty`, `TestAttachmentPayload`, `TestAttachmentPayload_UsesImageBase64AndAddsExtension`, `TestDecodeBase64Payload`, `TestDecodeBase64Payload_RawBase64`, `TestMimeExtension`, `TestResolveAssetPath`, `TestMarkdownLink`, `TestRunConvertsExport` |
 | REQ-HTML-1 to 9 | `TestMarkdownToHTMLRendersFormatting`, `TestMarkdownToHTMLEscapesRawHTML`, `TestMarkdownToHTMLNeutralizesDangerousURLs`, `TestRoleClass`, `TestIsImageName`, `TestRenderConversation`, `TestRenderConversationOmitsEmptySections`, `TestRunHTMLFormat`, `TestRunBothFormats` |
@@ -1389,9 +1385,13 @@ alternatives, and consequences. A superseded decision stays, marked as such.
   page is `index.html`. The reservation applies to every format so Markdown and
   HTML names match; a Markdown-only run therefore also renames a conversation
   titled `index`.
-- D-14 Folder directory names are unique ignoring case and `index.html` is
-  reserved (accepted), so `Docs` and `docs` do not share a directory on
-  case-insensitive filesystems and a folder cannot collide with the main index.
+- D-14 Folder directory names are unique ignoring case, and `index.html` and
+  `Unfiled` are reserved (accepted), so `Docs` and `docs` do not share a
+  directory on case-insensitive filesystems, a folder cannot collide with the
+  main index, and `Unfiled` holds only unmapped conversations. Earlier, an export
+  folder named `Unfiled` was merged into that directory; the owner chose to give
+  such a folder a numeric suffix (`Unfiled_2`) instead, as for any other conflict.
+  Consequence: an export folder named `Unfiled` appears as `Unfiled_2`.
 - D-15 Single newlines render as line breaks (accepted). Plain Markdown joins
   lines with a space, but chat messages use newlines as typed. Cost: a message
   hard-wrapped at a fixed column in its source would show ragged line ends.

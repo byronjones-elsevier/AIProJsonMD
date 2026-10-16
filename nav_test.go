@@ -295,3 +295,43 @@ func TestMarkdownOnlyRunWritesNoFolderPages(t *testing.T) {
 		}
 	}
 }
+
+// TestRunUnfiledNameIsReserved checks REQ-NAME-6: an export folder named
+// "Unfiled" is renamed with a suffix, so the Unfiled directory holds only
+// conversations that have no mapped folder.
+func TestRunUnfiledNameIsReserved(t *testing.T) {
+	export := Export{
+		Folders: []Folder{{ID: "f1", Name: "Unfiled"}, {ID: "f2", Name: "unfiled"}},
+		History: []Conversation{
+			{ID: "c1", Name: "Mapped one", FolderID: "f1", Messages: []Message{{Role: "user", Content: "one"}}},
+			{ID: "c2", Name: "Mapped two", FolderID: "f2", Messages: []Message{{Role: "user", Content: "two"}}},
+			{ID: "c3", Name: "Loose", FolderID: nil, Messages: []Message{{Role: "user", Content: "three"}}},
+		},
+	}
+	outDir, _ := runWith(t, export, "-format", "both")
+
+	for _, want := range []string{
+		filepath.Join("Unfiled_2", "Mapped one.md"),
+		filepath.Join("Unfiled_2", "Mapped one.html"),
+		filepath.Join("unfiled_3", "Mapped two.md"),
+		filepath.Join("Unfiled", "Loose.md"),
+		filepath.Join("Unfiled", "Loose.html"),
+	} {
+		if _, err := os.Stat(filepath.Join(outDir, want)); err != nil {
+			t.Errorf("missing %s: %v", want, err)
+		}
+	}
+	for _, unwanted := range []string{"Mapped one.md", "Mapped two.md"} {
+		if _, err := os.Stat(filepath.Join(outDir, "Unfiled", unwanted)); err == nil {
+			t.Errorf("Unfiled holds %s, which has a mapped folder", unwanted)
+		}
+	}
+
+	index := readFile(t, filepath.Join(outDir, "index.html"))
+	last := strings.Index(index, `<h2><a href="Unfiled/index.html">Unfiled</a></h2>`)
+	renamed := strings.Index(index, `<h2><a href="Unfiled_2/index.html">Unfiled_2</a></h2>`)
+	if last < 0 || renamed < 0 || renamed > last {
+		t.Errorf("Unfiled must be listed last, after the renamed folders (Unfiled at %d, Unfiled_2 at %d)", last, renamed)
+	}
+	localLinkTargets(t, outDir)
+}

@@ -186,7 +186,7 @@ All links are relative, so the output directory can be moved, zipped, or opened 
 - If an attachment reference exists in a conversation but no matching file blob is found, the Markdown output notes the missing attachment.
 
 - The name `index` is reserved in every folder, because each folder has an `index.html` page. A conversation titled `index` is written as `index_2`, in Markdown too, so the two formats always use the same names.
-- Folder names are compared without regard to case, so `Docs` and `docs` become `Docs` and `docs_2` instead of sharing one directory on macOS or Windows. A folder named `index.html` is renamed so it cannot collide with the main index file.
+- Folder names are compared without regard to case, so `Docs` and `docs` become `Docs` and `docs_2` instead of sharing one directory on macOS or Windows. A folder named `index.html` or `Unfiled` (in any capitalization) is renamed with a numeric suffix, for example `Unfiled_2`: `index.html` is the main index file, and the `Unfiled` directory is only for conversations that have no folder.
 - Attachment links are URL-escaped, so names with spaces or parentheses still resolve.
 - Output is private to your user: new files are created with mode `0600` and new directories with `0700`, because chat history can be sensitive. Existing files and directories keep their current permissions.
 - File and folder names are capped at 200 bytes, keeping the extension, so very long conversation names do not fail the write.

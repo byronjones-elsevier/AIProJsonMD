@@ -37,13 +37,13 @@ Conventions:
 ### docs/spec-handoff-changelog: specification, handoff, and changelog files (no PR yet)
 
 - Branch: `docs/spec-handoff-changelog`, base `main` (`590c032`); PR not yet
-  opened; commits `2bbae52` and the commit that finalized this entry (a commit
-  cannot name its own SHA)
+  opened; commits `2bbae52` onward (see `git log main..docs/spec-handoff-changelog`;
+  the final range is recorded when the PR is opened, because a commit cannot
+  name its own SHA)
 - Status: open (awaiting push and PR)
 - Started: 2026-10-16T17:30:09Z (first commit; the branch was created from `main`
   after PR #19 merged at 17:03:46Z)
-- Last commit: 2026-10-16T17:30:09Z for `2bbae52`; the finalizing commit is a few
-  minutes later
+- Last commit: set when the PR is opened (`2bbae52` was 2026-10-16T17:30:09Z)
 - Worked on by: Byron Jones (requested the change and the three-file model;
   will push and merge); Claude Sonnet 5.5 via Claude Code (author)
 - What it does:
@@ -62,6 +62,13 @@ Conventions:
     `-h` test (REQ-CLI-5).
   - Syncs `agents/coding.md`; updates `AGENTS.md` and `README.md` (including a
     corrected description of `-overwrite`).
+  - Reserves the folder name `Unfiled` (decided by Byron after the reviews
+    exposed the gap): an export folder named `Unfiled` in any capitalization now
+    gets a numeric suffix (`Unfiled_2`), like any other name conflict, so the
+    `Unfiled` directory holds only conversations without a mapped folder. This
+    is a behavior change for exports that have a folder with that name. Code in
+    `convert.go`, tests in `convert_test.go` and `nav_test.go`, and
+    `ENGINEERING.md` (REQ-NAME-6, section 5.2, decision D-14).
 - Spec and docs: all of `ENGINEERING.md`; `AGENTS.md`; `README.md`; `agents/coding.md`.
 - Verification: `make all` passes (0 lint issues) and markdownlint exits 0. The
   drift test and the worked-example test were each shown to fail when the
@@ -73,14 +80,14 @@ Conventions:
   found smaller gaps and several inconsistencies introduced by the round 1
   fixes. Every claim was checked against the code before acting. Findings were
   fixed in the specification, turned into tests, or recorded as open decisions
-  (HANDOFF.md, H-03 and H-07). `make all` passes with 0 lint issues and 90.7%
+  (HANDOFF.md, H-07). `make all` passes with 0 lint issues and 90.7%
   coverage; markdownlint exits 0.
 - Notes: the global standard edit is in `~/.claude/agents` and is not part of
   this repository's history. The reviews found places where the specification
   disagreed with the code (the `-overwrite` description, dangerous URLs
   rendered with an empty `href` rather than none, top-level `null` input, the
-  `Unfiled` rule). The specification was corrected to match the code; the code
-  was not changed, because the `Unfiled` rule is an open decision for the owner.
+  `Unfiled` rule). The specification was corrected to match the code, except for
+  `Unfiled`, which the owner then decided to change in the code (below).
   The new tests also turned five requirements that were "verified by review"
   (no deletion, no network calls, output stays inside `-out`, relative links,
   warning log format) into automated checks. One of the new drift tests caught
