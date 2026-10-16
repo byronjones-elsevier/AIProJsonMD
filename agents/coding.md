@@ -57,8 +57,11 @@ Link all three from `README.md` and `AGENTS.md`.
   routes agents; neither may contradict `ENGINEERING.md`.
 - At the start of a session read `AGENTS.md`, then `ENGINEERING.md`, then
   `HANDOFF.md`, then the newest `CHANGELOG.md` entries.
-- At the end of a session, and whenever work is paused or abandoned, update
-  `HANDOFF.md` and make sure the `CHANGELOG.md` entry for the branch is current.
+- Write the `CHANGELOG.md` entry and update `HANDOFF.md` in the branch, in the
+  same pull request as the work, so both are final when it merges. Also update
+  `HANDOFF.md` whenever work is paused or abandoned. Never write a fact into
+  either file that only exists after the pull request is opened or merged (see
+  "Facts that come from git" below).
 
 ### ENGINEERING.md: primary specification
 
@@ -121,17 +124,19 @@ such a test can fail by altering the specification once and restoring it.
 
 The single place for work that is not done and the context needed to resume it,
 for the next session, whether by the same person or someone else. It holds only
-open items; when an item is finished, remove it and record it in `CHANGELOG.md`.
-Keep it short and current: a stale item is worse than none. Date every entry and
-name the owner.
+open items. Remove an item in the pull request that finishes it, and record the
+work in `CHANGELOG.md`; describe the state as it will be once that pull request
+merges. Keep it short and current: a stale item is worse than none. Name the
+owner of every item. Do not record commit ids, pull request numbers, or merge
+times; they go stale at the merge, and git has them.
 
 Required sections:
 
-1. Status: as of what timestamp, on which branch and commit, and whether the
-   build, tests, and CI are passing.
+1. Status: the date it was last updated, what work is in flight (by branch
+   name), and whether the build, tests, and CI were passing.
 2. Resume here: the exact next step and the commands to run first.
-3. In progress: for each branch or pull request in flight, its state,
-   uncommitted or unpublished changes, and what is left.
+3. In progress: for each branch in flight other than the one this update ships
+   with, its state, uncommitted or unpublished changes, and what is left.
 4. Outstanding work: a prioritized list. Each item has an ID, a description, the
    reason, acceptance criteria (referring to requirement IDs where they exist),
    its owner, and what blocks it.
@@ -143,23 +148,20 @@ Required sections:
 
 ### CHANGELOG.md: history of all work
 
-A complete record of every unit of work: each branch and pull request, what it
-did, when, and by whom. Newest first. Include direct commits to the default
-branch and work that predates the file; when adopting this standard, backfill
-from the repository history. Keep abandoned and superseded work listed with its
-status. Use one entry per branch, even when branches are stacked.
+A complete record of every unit of work: each branch, what it did, and by whom.
+Newest first, in one list. Include direct commits to the default branch and work
+that predates the file; when adopting this standard, backfill from the repository
+history. Keep abandoned and superseded work listed with its outcome. Use one
+entry per branch, even when branches are stacked.
 
-Start an entry when the branch is created, keep it current while work
-proceeds, and finalize it before the pull request is opened. Use this template:
+Write the entry in the branch, in the same pull request as the work. Use this
+template:
 
 ```markdown
-### <branch-name>: <one-line summary> (PR #<n>)
+### <branch-name>: <one-line summary>
 
-- Branch: `<branch>`, base `<base>`; PR #<n>; commits `<first-sha>..<last-sha>`
-- Status: open | merged | abandoned | superseded
-- Started: <UTC timestamp of the first commit>
-- Last commit: <UTC timestamp>
-- Merged: <UTC timestamp> (omit if not merged)
+- Branch: `<branch>`, base `<base>`
+- Outcome: abandoned | superseded, and why (omit when the work is merged)
 - Worked on by: <person> (<role>); <AI agent and model> (<tool>, <role>)
 - What it did: <behavior and design changes, as bullets>
 - Spec and docs: <ENGINEERING.md sections and requirement IDs changed>
@@ -167,7 +169,29 @@ proceeds, and finalize it before the pull request is opened. Use this template:
 - Notes: <surprises, reverts, incidents, and items moved to HANDOFF.md>
 ```
 
-- Write every timestamp as ISO 8601 in UTC, for example `2026-10-16T15:30:01Z`.
+#### Facts that come from git
+
+An entry holds only what is known when the work is done. It never holds the pull
+request number, the merge time, the merged status, commit ids or ranges, or
+commit times. Those facts do not exist until after the entry is written, so
+copying them in forces a follow-up commit after every merge, and a merge that
+outruns that commit leaves the file wrong. They are already in the repository:
+a merge commit made by the hosting service names the pull request and the
+branch, and carries the merge time, and its two parents give the branch's
+commits.
+
+Provide a command that prints them for every entry, read from git and in UTC,
+for example `make changelog/status`. Check with a test that the entries hold no
+such facts. Entries written before the rule keep what they have; mark them as
+backfilled history.
+
+#### Rules
+
+- Write every timestamp you do record as ISO 8601 in UTC, for example
+  `2026-10-16T15:30:01Z`. To convert a git time to UTC, use the epoch
+  (`date -u -r $(git log -1 --format=%ct <rev>) +%Y-%m-%dT%H:%M:%SZ`) or git's
+  `format-local` date style with `TZ=UTC`; git's `format` style keeps the
+  commit's own offset.
 - Name each person once by their canonical name and GitHub handle, and list
   their other git identities as aliases. Give roles such as author, reviewer,
   pusher, and merger.
@@ -175,10 +199,6 @@ proceeds, and finalize it before the pull request is opened. Use this template:
   ran in, for example "Claude Sonnet 5.5, via Claude Code". Write "not recorded"
   rather than guessing, and credit tools such as Copilot Autofix when a commit
   trailer shows them.
-- Put the pull request number, the final commit range, and the merged status in
-  the entry before the pull request is merged: push the follow-up commit first.
-  A merge that outruns the entry leaves the changelog wrong, so if it happens,
-  correct the entry at once in a small pull request.
 - Never record secrets, and do not copy private data into an entry.
 - Correct an entry by amending it with a dated note, not by silently rewriting
   what happened.

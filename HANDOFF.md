@@ -2,37 +2,38 @@
 
 Outstanding work and the context needed to resume it. Read after
 [ENGINEERING.md](ENGINEERING.md) (the specification). Finished work is recorded
-in [CHANGELOG.md](CHANGELOG.md), not here. Update this file at the end of every
-session and whenever work is paused or reprioritized. Owner abbreviations:
-Byron means Byron Jones; Agent means the AI agent working in the session.
+in [CHANGELOG.md](CHANGELOG.md), not here. Update this file in the pull request
+that finishes the work, describing the state after it merges, and whenever work
+is paused or reprioritized. It holds no commit ids, pull request numbers, or
+merge times (`make changelog/status` prints those from git). Owner
+abbreviations: Byron means Byron Jones; Agent means the AI agent working in the
+session.
 
-Last updated: 2026-10-16 (UTC), by Claude Sonnet 5.5 via Claude Code.
+Last updated: 2026-10-16, by Claude Sonnet 5.5 via Claude Code.
 
 ## 1. Status
 
-- Default branch `main` is at `0a37544` (PR #20 merged 2026-10-16T17:45:59Z).
-  Build, tests, lint, vulnerability scan, and Markdown lint pass (`make all`,
-  `make vuln`), and CI passed on the PR.
-- Work in progress: branch `docs/changelog-pr20-merged`, a documentation-only
-  correction (section 3).
-- Statement coverage is about 90.7%. The program has no known failing behavior.
+- Build, tests, lint (including `shellcheck`), vulnerability scan, and Markdown
+  lint pass (`make all`, `make vuln`), and CI passes on the default branch.
+- No work is in flight except the unpublished global standard edit (section 3).
+- Statement coverage is about 90%. The program has no known failing behavior.
 
 ## 2. Resume here
 
-1. `cd ~/dev/AIProJsonMD && git switch main && git pull` (or, if the correction
-   in section 3 is still open, `git switch docs/changelog-pr20-merged`).
-2. Run `make all` and confirm it passes (it includes `spec_test.go`).
-3. If the correction in section 3 is not merged yet, ask Byron to push it
-   (`git push -u origin docs/changelog-pr20-merged`) and open the PR against
-   `main` with `SSL_CERT_FILE="" CGO_ENABLED=1 gh pr create ...` (see section 7).
-4. Then take the highest-priority open item in section 4.
+1. `cd ~/dev/AIProJsonMD && git switch main && git pull`.
+2. Run `make all` and confirm it passes (it includes `spec_test.go` and the
+   shell tests).
+3. See what recent work was done and when with `make changelog/status`, and read
+   the newest entries in `CHANGELOG.md`.
+4. Take the highest-priority open item in section 4. To publish a branch, ask
+   Byron to push it, then open the PR with
+   `SSL_CERT_FILE="" CGO_ENABLED=1 gh pr create ...` (see section 7).
 
 ## 3. In progress
 
 | Item | State | What is left |
 | --- | --- | --- |
-| Branch `docs/changelog-pr20-merged` | Documentation only: records PR #20 as merged in `CHANGELOG.md`, updates this file, and the "last reviewed" commit in `ENGINEERING.md`. Committed locally once the agent finishes; not pushed, no PR. | Byron pushes it (`git push -u origin docs/changelog-pr20-merged`); the agent opens the PR against `main`. After it merges, remove this row and set the entry's status and merge time in `CHANGELOG.md` (in the same PR if possible, otherwise a one-line follow-up). |
-| Global standard `~/.claude/agents/coding.md` | Edited in Byron's working tree, uncommitted, in the `ByronScottJones/agents` repository. Contains two changes: consistent `AGENTS.md` spelling, and the new "Project Specification, Handoff, and Changelog" section. | Byron reviews (`git -C ~/.claude/agents diff`) and publishes through his usual pull request flow. The project copy `agents/coding.md` must stay byte-identical to it. |
+| Global standard `~/.claude/agents/coding.md` | Edited in Byron's working tree, uncommitted, in the `ByronScottJones/agents` repository. Changes: consistent `AGENTS.md` spelling; the "Project Specification, Handoff, and Changelog" section; and the rule that changelog entries and the handoff hold no facts that exist only after a pull request is opened or merged (they come from git). | Byron reviews (`git -C ~/.claude/agents diff`) and publishes through his usual pull request flow. The project copy `agents/coding.md` must stay byte-identical to it. |
 
 ## 4. Outstanding work
 
@@ -84,6 +85,15 @@ the changelog.
 - No end-to-end test exercises a real, large export in CI; the realistic-data
   procedure (specification 11.2) is manual and uses private data.
 
+### H-08: Shell formatting and tests (owner: Agent)
+
+- Why: the shell standard names `shfmt` (formatter) and `bats-core` (tests).
+  Neither is installed on the development machine, so `scripts/changelog-status.sh`
+  follows `shfmt` defaults by hand and is tested through a Go test run by
+  `make test`. `shellcheck` is enforced by `make lint/shell` and in CI.
+- Acceptance: install `shfmt`, add a `fmt/check` step for shell scripts to the
+  Makefile and CI, and decide whether to move the script tests to `bats`.
+
 ### H-07: Remaining specification gaps (owner: Agent)
 
 - Why: two isolated reviews rated the specification "mostly" sufficient to
@@ -125,16 +135,17 @@ the changelog.
   (the remote is SSH). The agent opens pull requests afterwards with
   `SSL_CERT_FILE="" CGO_ENABLED=1 gh pr create ...`, run with the sandbox
   disabled. Verify a push with `gh api repos/<owner>/<repo>/branches/<branch>`.
-- Record a branch's PR number and merged status in its `CHANGELOG.md` entry
-  before the PR is merged: push any follow-up commit before merging, or accept
-  that the correction is a small follow-up PR. PR #20 merged before its
-  follow-up commit was pushed, so `main`'s changelog was stale until the
-  correction in section 3. Ask Byron to push the follow-up before merging.
+- Do not write the PR number, merge time, merged status, or commit ids into
+  `CHANGELOG.md` entries or this file. Twice, a merge outran a follow-up commit
+  that recorded them and left `main` wrong. Write the entry and update this file
+  in the branch, in the PR that does the work, and read the git-derived facts
+  with `make changelog/status`.
 - A stacked pull request retargets to `main` only when its base branch is
   deleted. Merge the base PR, delete its branch, and confirm the next PR's base
   is `main` before merging it, then confirm the change is on `main`
-  (`git merge-base --is-ancestor <sha> origin/main`). PR #18 was stranded once
-  by merging it into its still-existing base. Prefer independent PRs.
+  (`git merge-base --is-ancestor <sha> origin/main`). An earlier stacked PR was
+  stranded once by merging it into its still-existing base. Prefer independent
+  PRs.
 - If a merge conflict is resolved in the GitHub web editor, re-check the file on
   `main`; one resolution dropped a README sentence and left a lint error.
 - Run Go and npm tools inside the agent sandbox with caches in `$TMPDIR`:

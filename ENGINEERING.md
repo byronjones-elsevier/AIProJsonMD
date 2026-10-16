@@ -180,6 +180,18 @@ export format, and a graphical interface.
 - REQ-NFR-5: Every requirement in this specification MUST be verified by a named
   test or a named procedure in section 11.
 
+### 2.12 Project process
+
+- REQ-PROC-1: Entries in the "Entries" section of `CHANGELOG.md` MUST NOT contain
+  a pull request number, a merge time, a merged status, a commit id or range, or
+  a commit time. Those facts are read from git (REQ-PROC-2).
+- REQ-PROC-2: `make changelog/status` (which runs `scripts/changelog-status.sh`)
+  MUST print, for every entry heading in `CHANGELOG.md`, the pull request number,
+  the merge time in UTC, the number of commits, and the first and last commit
+  times, read from the merge commits on the default branch (section 3.6).
+- REQ-PROC-3: Shell scripts in `scripts/` MUST pass `shellcheck` with no rule
+  disabled (`make lint/shell`, run in CI and by `make all`).
+
 ## 3. External interfaces
 
 ### 3.1 Command line
@@ -278,12 +290,14 @@ The `Makefile` provides these targets. `make` with no target prints help.
 | --- | --- |
 | `help` | Lists targets using the `##` comment above each. |
 | `default` | Alias for `build`. |
-| `all` | `fmt/check`, `vet`, `lint`, `test/race`, `build`. |
+| `all` | `fmt/check`, `vet`, `lint`, `lint/shell`, `test/race`, `build`. |
 | `deps` | `go mod download` then `go mod verify`. |
 | `fmt` | `go fmt ./...`. |
 | `fmt/check` | Fails if `gofmt -l .` lists any file. |
 | `vet` | `go vet ./...`. |
 | `lint` | `golangci-lint run ./...`. |
+| `lint/shell` | `shellcheck scripts/*.sh`; fails if `shellcheck` is not installed. |
+| `changelog/status` | Runs `scripts/changelog-status.sh -r $(CHANGELOG_REF) -t` (3.6). |
 | `test` | `deps`, then `go test ./...`. |
 | `test/race` | `deps`, then `go test -race ./...`. |
 | `test/cover` | Tests with `coverage.out` and a printed total. |
@@ -295,7 +309,47 @@ The `Makefile` provides these targets. `make` with no target prints help.
 
 Variables use `?=` defaults: `APP_NAME=AIProJsonMD`, `GO=go`, `GOFLAGS=`,
 `GOVULNCHECK_VERSION=v1.9.0`, `OUT_DIR=out_markdown`, `ASSETS_DIR=assets`,
-`FORMAT=md`.
+`FORMAT=md`, `CHANGELOG_REF=main`.
+
+### 3.6 Changelog status script
+
+```text
+scripts/changelog-status.sh [-r REF] [-f FILE] [-t] [-h]
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-r REF` | `main` | Git ref whose first-parent history is searched. |
+| `-f FILE` | `CHANGELOG.md` | Changelog file whose third-level (`###`) headings are read. |
+| `-t` | off | Align the columns as a table instead of printing raw tab-separated rows. |
+| `-h` | | Print the usage text (the leading comment of the script) and exit 0. |
+
+For each heading `### <branch>: <summary>` the branch is the text before the
+first colon followed by a space (or the whole heading if it has none). A merge
+commit on the first-parent history of `REF` is a pull request merge if its
+subject starts with `Merge pull request #<n> from` and a space; the branch is
+the text after that, without its first path component (the owner), so
+`octo/docs/y` is the branch `docs/y`. Other merge commits are ignored.
+
+The first output line is a header. Then, for each heading in file order, one row
+per pull request merge of that branch (newest first), or one `not merged` row.
+Rows are tab-separated:
+
+```text
+branch  status  pr  merged_utc  commits  first_commit_utc  last_commit_utc
+```
+
+`status` is `merged` or `not merged`; `pr` is `#<n>` or `-`; `commits` is the
+number of commits reachable from the merge's second parent and not from its
+first; the times are the committer times of the merge commit, the oldest of those
+commits, and the newest (the second parent), in UTC as `YYYY-MM-DDTHH:MM:SSZ`.
+An unmerged row has `-` in every column after `status`. A branch name that was
+reused shows each merge.
+
+Exit status: 0 on success; 1 if the file, the ref, or the git repository is
+missing; 2 for an unknown option or an option without its argument, with the
+message `changelog-status: unknown option -<x>` or
+`changelog-status: option -<x> needs an argument` on standard error.
 
 ## 4. Data
 
@@ -1111,6 +1165,8 @@ then files; finally the index pages.
 | `copy.go` | The copy-button script and the Content-Security-Policy builder. |
 | `main_test.go`, `files_test.go`, `convert_test.go`, `html_test.go`, `nav_test.go`, `copy_test.go` | Unit and end-to-end tests (section 11). |
 | `spec_test.go` | Fails if this file drifts from the code (section 11). |
+| `scripts/changelog-status.sh` | Prints pull request and merge facts for each changelog entry from git (3.6). |
+| `scripts_test.go` | Tests the script against a throwaway git repository, and checks that changelog entries hold no post-merge facts. |
 | `Makefile` | Task runner (3.5). |
 | `.golangci.yml`, `.markdownlint.json` | Linter configuration. |
 | `.github/workflows/ci.yml`, `.github/dependabot.yml` | CI and dependency updates. |
@@ -1205,7 +1261,8 @@ cause, except where noted.
   `os`, `io/fs`, `regexp`, `sort`, `unicode`, and `unicode/utf8`.
 - Tools: `golangci-lint` v2 (CI pins v2.15.0; a local build must be at least as
   new as the Go toolchain); `govulncheck` v1.9.0 via `make vuln`;
-  `markdownlint-cli2` 0.23.3; GNU Make.
+  `markdownlint-cli2` 0.23.3; `shellcheck` (any recent version; installed on the
+  CI runners); GNU Make.
 
 `go.mod` is exactly (and `go.sum` holds the checksums for goldmark):
 
@@ -1237,7 +1294,7 @@ require github.com/yuin/goldmark v1.8.6
   workflow and ref that cancels superseded runs, and a 5 to 10 minute timeout per
   job. Actions are pinned to full commit SHAs and updated by Dependabot. Jobs:
   1. Test on `ubuntu-latest` and `macos-latest`: `make fmt/check vet test/race build`.
-  2. Lint: `golangci-lint` v2.15.0.
+  2. Lint: `golangci-lint` v2.15.0, then `make lint/shell`.
   3. Vulnerability scan: `make vuln`.
   4. Markdown lint: `markdownlint-cli2@0.23.3`.
 - Dependabot (`.github/dependabot.yml`) checks `github-actions` and `gomod`
@@ -1275,6 +1332,9 @@ Each requirement group is verified by these tests (all in package `main`).
 | REQ-HTML-3 to 5 (examples) | `TestSpecRenderingExamples` |
 | REQ-OUT-4 | `TestRunIsDeterministic` |
 | REQ-CLI-5 | `TestRunHelpReturnsErrHelp` |
+| REQ-PROC-1 | `TestChangelogEntriesHaveNoPostMergeFacts` |
+| REQ-PROC-2 | `TestChangelogStatusScript`, `TestChangelogStatusScriptErrors` |
+| REQ-PROC-3 | `make lint/shell` in CI and `make all` (no Go test) |
 | Spec drift and the worked example | `TestSpecMatchesCode`, `TestSpecStatesToolchainVersions`, `TestSpecWindowsReservedNamesMatchCode`, `TestSpecVerificationTableNamesRealTests`, `TestSpecWorkedExample` |
 
 Requirements verified by named procedures instead of an automated test:
@@ -1422,6 +1482,20 @@ alternatives, and consequences. A superseded decision stays, marked as such.
   outstanding work and `CHANGELOG.md` for history (accepted), following the
   global standard in `agents/coding.md`. A test keeps the specification's
   appendices in step with the code.
+- D-24 Pull request and merge facts come from git, not from the changelog
+  (accepted). Context: twice, a pull request merged before a follow-up commit
+  that recorded its number and merge in `CHANGELOG.md` and `HANDOFF.md` was
+  pushed, leaving `main` wrong. Choice: entries and the handoff hold only what
+  is known when the work is done and are written in the pull request that does
+  the work; `scripts/changelog-status.sh` reads the number, merge time, and commit
+  facts from the merge commits (REQ-PROC-1, REQ-PROC-2). Rejected: keeping the
+  facts in the file and committing a follow-up before each merge (the cycle
+  continues, and the merge time cannot be known before the merge); and a bot that
+  updates the files after each merge (needs write access to the default branch or
+  its own pull request, so it moves the cycle into automation). Consequence: the
+  changelog file alone does not show pull request numbers or merge times for new
+  entries; `make changelog/status` does. Entries written before the rule are kept
+  as backfilled history.
 
 ## Appendix A: stylesheet
 

@@ -1,19 +1,28 @@
 # Changelog
 
-A record of every unit of work on `AIProJsonMD`: each branch and pull request,
-what it did, when, and by whom. Newest first. It follows the standard in
+A record of every unit of work on `AIProJsonMD`: each branch, what it did, and
+by whom. Newest first. It follows the standard in
 [agents/coding.md](agents/coding.md). Specification: [ENGINEERING.md](ENGINEERING.md).
 Outstanding work: [HANDOFF.md](HANDOFF.md).
 
 Conventions:
 
-- Timestamps are ISO 8601 in UTC (`Z`). Commit times come from git author
-  dates; PR times come from GitHub.
-- Start an entry when a branch is created, keep it current as the work
-  proceeds, and finalize it before the pull request is opened.
+- **Entries** (the section below) hold only what is known when the work is
+  done: the branch, who worked on it, what it did, how it was verified, and
+  notes. They never contain the pull request number, the merge time, the merged
+  status, or commit times and ranges. Those facts do not exist until after the
+  entry is written, so copying them in would need a follow-up commit after every
+  merge. Run `make changelog/status` (or
+  `scripts/changelog-status.sh -t`) to see them for every entry, read from the
+  git history in UTC.
+- Write the entry in the branch, in the same pull request as the work. Keep one
+  list, newest first; there is no "in flight" section to move entries out of.
+- If work is abandoned or superseded, say so in the entry with a line starting
+  `- Outcome:`. Merged work needs no outcome line.
 - Correct an entry with a dated note rather than rewriting it.
-- This file was created on 2026-10-16 and backfilled from the git history and
-  GitHub pull request metadata.
+- **Backfilled history** (the last section) was written before this rule. Its
+  entries include pull request numbers, merge times, and commit ranges copied
+  from GitHub on 2026-10-16, and are kept as written.
 
 ## People and tools
 
@@ -32,24 +41,68 @@ Conventions:
 - Where a commit carries no AI trailer and the history does not say, AI
   assistance is "not recorded".
 
-## In flight
+## Entries
 
-### docs/changelog-pr20-merged: record PR #20 as merged (no PR yet)
+### docs/changelog-from-git: derive pull request and merge facts from git
 
-- Branch: `docs/changelog-pr20-merged`, base `main` (`0a37544`); PR not yet
-  opened; commits not yet made
-- Status: open
-- Started: 2026-10-16T17:47:34Z (branch created from `main`; first commit follows)
-- Worked on by: Byron Jones (reported the merge; will push and merge); Claude
-  Sonnet 5.5 via Claude Code (author)
-- What it does: moves the PR #20 entry from "In flight" to History with its
-  merge time, states the incident above, brings `HANDOFF.md` up to date with
-  `main` at `0a37544`, and updates the "last reviewed" commit in
-  `ENGINEERING.md`.
-- Spec and docs: `CHANGELOG.md`, `HANDOFF.md`, `ENGINEERING.md` header only.
-- Verification: documentation only; `make all` and markdownlint run before commit.
+- Branch: `docs/changelog-from-git`, base `main`
+- Worked on by: Byron Jones (chose the approach, pushes, merges); Claude Sonnet
+  5.5 via Claude Code (author)
+- What it did:
+  - Added `scripts/changelog-status.sh` and the `make changelog/status` target.
+    For every changelog entry heading it reads the pull request number, merge
+    time (UTC), commit count, and first and last commit times from the merge
+    commits on `main`, including branches merged twice and branch names with
+    slashes. Added `make lint/shell` (`shellcheck`) and made it part of
+    `make all`.
+  - Changed the changelog rules so entries hold no post-merge facts: no pull
+    request number, merge time, merged status, or commit times. Restructured
+    this file into "Entries" (new rule) and "Backfilled history" (kept as
+    written), removed the "In flight" section, and rewrote the two newest
+    entries to the new form.
+  - Changed the handoff rules: update `HANDOFF.md` in the pull request that
+    finishes the work, describing the state after the merge, with no commit ids
+    or merge facts.
+  - Updated the global standard (`~/.claude/agents/coding.md`) and the project
+    copy, `ENGINEERING.md` (REQ-PROC-1 and REQ-PROC-2, the verification table,
+    section 3.5 and 10, decision D-24), `README.md`, and `AGENTS.md`.
+- Spec and docs: `ENGINEERING.md`, `HANDOFF.md`, `README.md`, `AGENTS.md`,
+  `agents/coding.md`, this file.
+- Verification: `make all` passes, including `shellcheck`. Three new tests
+  build a throwaway git repository with known merge commits in mixed time zones
+  and check the script's rows and exit statuses (including that times are
+  converted to UTC), and a fourth enforces that "Entries" contains no
+  post-merge facts. Run on the real history, the script's output matched the
+  pull request numbers, merge times, and commit counts recorded from GitHub.
+  Not exercised: `shfmt` and `bats`, which the shell standard names but are not
+  installed on the development machine (the script follows `shfmt` defaults by
+  hand and is tested through `make test` instead); the script on Linux (it uses
+  only POSIX tools, `git`, `awk`, and `column`).
+- Notes: two earlier pull requests each merged before a follow-up commit that
+  recorded their number and merge in this file, so the changelog on `main` was
+  wrong for a while each time. That is why the facts now come from git. The
+  script shows a branch name that was reused (the first attempt at a rename was
+  merged into another branch, not `main`) as the merge it finally reached.
 
-## History
+### docs/changelog-pr20-merged: record the specification pull request as merged
+
+- Branch: `docs/changelog-pr20-merged`, base `main`
+- Worked on by: Byron Jones (reported the merge, pushed, merged); Claude Sonnet
+  5.5 via Claude Code (author)
+- What it did: moved the specification pull request's entry from "In flight" to
+  History with its merge time, recorded the incident that made it necessary,
+  brought `HANDOFF.md` up to date with `main`, updated the "last reviewed"
+  commit in `ENGINEERING.md`, and added a bullet to the changelog rules (also
+  in the global standard) about recording the number before merging. That
+  bullet is replaced by the derive-from-git rule in the entry above.
+- Spec and docs: `CHANGELOG.md`, `HANDOFF.md`, `ENGINEERING.md` header,
+  `agents/coding.md`.
+- Verification: documentation only; `make all` and markdownlint passed.
+- Notes: this branch's own entry said "no PR yet" when it merged, because the
+  follow-up commit that would have fixed it was never made (an edit script
+  aborted without being noticed). The entry above ends that cycle.
+
+## Backfilled history
 
 ### docs/spec-handoff-changelog: specification, handoff, changelog, and reserved Unfiled (PR #20)
 
