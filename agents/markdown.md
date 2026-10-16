@@ -53,7 +53,7 @@ Load this file when creating, editing, or reviewing Markdown files.
 
 ## Review Checklist
 
-- Confirm the document is routed from `Agents.md` when it is a reusable topic.
+- Confirm the document is routed from `AGENTS.md` when it is a reusable topic.
 - Check that normative language is intentional: distinguish requirements,
   recommendations, and optional examples.
 - Check for contradictions with more general or more specific guidance.

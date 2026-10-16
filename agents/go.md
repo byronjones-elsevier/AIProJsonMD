@@ -1,7 +1,7 @@
 # Go
 
 Open this file only when writing or modifying Go code. General rules stay in the
-root `Agents.md`.
+root `AGENTS.md`.
 
 ## Configuration
 

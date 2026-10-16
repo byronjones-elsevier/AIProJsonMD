@@ -1,7 +1,12 @@
+---
+title: "Coding Standards"
+description: "Load this file when a task involves source files, scripts, or configuration."
+---
+
 # Coding Standards
 
 Load this file when a task involves source files, scripts, or configuration.
-Load the language-specific file named in `Agents.md` before editing that
+Load the language-specific file named in `AGENTS.md` before editing that
 language.
 
 ## Formatting and Linting
@@ -12,23 +17,20 @@ those tools as authoritative and do not recommend conflicting style changes.
 ## Code Comments
 
 - Prefer clear names and small functions over explanatory comments.
-- Add a brief comment or docstring when a function's purpose or non-obvious
-  behavior would not be clear to a reader.
+- Add a brief comment or docstring when a function’s purpose or non-obvious behavior would not be clear to a reader.
 - Use comments to explain intent, constraints, tradeoffs, or non-obvious behavior.
 - Avoid restating what the code already says.
 - Keep comments accurate and update or remove them when the code changes.
-- Use language-appropriate comment styles and follow the repository's existing conventions.
+- Use language-appropriate comment styles and follow the repository’s existing conventions.
 
-## Project Level Agents.md Replication
+## Project Level AGENTS.md Replication
 
 Each Application project should have:
 
-- `Agents.md` file in the root.
-- `agents` folder for subfiles, skills, etc.
+- AGENTS.md file in the root
+- agents folder for subfiles, skills, etc
 
-For each subfile that you load, if it is relevant to the project, copy it to the
-project-level `agents` folder, and update `Agents.md` Topic Routing table,
-linking it to the subfile.
+For each subfile that you load, if it is relevant to the project, copy it to the project level agents folder, and update AGENTS.md "Topic Routing" table, linking it to the subfile.
 
 ## Engineering Handover Notes
 
@@ -46,14 +48,13 @@ verification status, or known risks change. Include:
 - Remaining risks, known gaps, and possible future work.
 - Build, run, and validation commands.
 
-Link `ENGINEERING.md` from `README.md` and `Agents.md`.
+Link `ENGINEERING.md` from `README.md` and `AGENTS.md`.
 
 ## Documentation
 
 - Keep documentation aligned with code and configuration changes.
 - Prefer concise, task-focused documentation with clear headings and examples.
-- Update README files, usage notes, and references when behavior, setup, or
-  workflows change.
+- Update README files, usage notes, and references when behavior, setup, or workflows change.
 - Avoid adding documentation that simply repeats obvious code behavior.
 
 ## Input Validation
@@ -67,22 +68,18 @@ free-form input or invent validation rules.
 - Handle errors where they can be acted on and surfaced meaningfully.
 - Prefer explicit, actionable error messages over generic failures.
 - Avoid swallowing errors unless there is a documented reason to do so.
-- Use retries, fallbacks, or graceful degradation only when they are appropriate
-  for the specific failure mode.
-- Keep failure behavior consistent with the surrounding code and project
-  conventions.
+- Use retries, fallbacks, or graceful degradation only when they are appropriate for the specific failure mode.
+- Keep failure behavior consistent with the surrounding code and project conventions.
 
 ## Testing and Validation
 
 - Test behavior, including unhappy paths, empty states, and invalid inputs.
-- Match the project's existing test framework instead of introducing a second
-  one.
+- Match the project's existing test framework instead of introducing a second one.
 - Add or update tests when changing behavior, fixing bugs, or covering regressions.
 - Run the narrowest relevant executable check after each substantive edit.
 - Preserve public APIs unless a breaking change is explicitly requested.
 - Keep unrelated refactors out of the change.
-- If tests are missing, add at least one focused test that covers the changed
-  behavior or regression.
+- If tests are missing, add at least one focused test that covers the changed behavior or regression.
 
 ## Version Selection
 
@@ -95,25 +92,21 @@ free-form input or invent validation rules.
 - Match the existing project conventions before applying defaults.
 - Include the standard header or preamble required by the language file.
 - Use existing snippets and helpers when they solve the same problem.
-- Distinguish project conventions and code structure from formatting rules;
-  defer formatting to the project's formatter and linter.
+- Distinguish project conventions and code structure from formatting rules; defer formatting to the project’s formatter and linter.
 
 ## Maintenance and Compatibility
 
 - Fix root causes instead of applying surface-level patches.
 - Prefer the standard library for trivial functionality.
-- Do not wrap every function in `try/catch`; handle errors where they can be
-  acted on.
+- Do not wrap every function in `try/catch`; handle errors where they can be acted on.
 - Remove dead code or explain why it must remain.
 - Do not use deprecated APIs unless migration is explicitly out of scope.
 - Never hardcode credentials, account IDs, or environment-specific values.
-- Treat compiler and linter warnings as errors unless there is a documented
-  reason not to.
+- Treat compiler and linter warnings as errors unless there is a documented reason not to.
 
 ## Public API and Compatibility
 
-- Document public APIs in markdown when other agents or contributors need to use
-  them.
+- Document public APIs in markdown when other agents or contributors need to use them.
 - Preserve backward compatibility unless a breaking change is requested.
 - Document or call out breaking changes clearly when they are unavoidable.
 - Keep input and output contracts stable unless the task explicitly changes them.
@@ -130,6 +123,6 @@ free-form input or invent validation rules.
 ## Concurrency and Timing
 
 - Be explicit about timeouts, retries, and cancellation behavior when relevant.
-- Avoid race conditions by using the project's established synchronization patterns.
+- Avoid race conditions by using the project’s established synchronization patterns.
 - Keep operations idempotent when they may be retried or run concurrently.
 - Document ordering assumptions when they matter to correctness.
