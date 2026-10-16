@@ -214,4 +214,4 @@ real chat history is needed.
 
 See [ENGINEERING.md](ENGINEERING.md) for architecture, key decisions,
 verification status, and known risks. Agent guidance lives in
-[Agents.md](Agents.md).
+[AGENTS.md](AGENTS.md).

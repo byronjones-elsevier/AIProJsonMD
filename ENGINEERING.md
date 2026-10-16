@@ -53,7 +53,7 @@ Usage and flags are documented in [README.md](README.md).
 | `nav_test.go` | Navigation tests: breadcrumb and up/home links, folder pages, every local link in a generated site resolving, reserved `index` names |
 | `go.mod`, `go.sum` | Module definition with the goldmark dependency and its checksums |
 | `Makefile` | Build, test, lint, and help targets (see `make help`) |
-| `Agents.md`, `agents/` | Agent guidance and the topic files it routes to |
+| `AGENTS.md`, `agents/` | Agent guidance and the topic files it routes to |
 | `.markdownlint.json` | Markdown lint configuration |
 | `.golangci.yml` | `golangci-lint` v2 configuration: standard linters plus `errorlint`, `gosec`, `misspell`, `revive`, `unconvert` |
 | `.github/workflows/ci.yml` | CI: tests on Linux and macOS, lint, `govulncheck`, Markdown lint |
