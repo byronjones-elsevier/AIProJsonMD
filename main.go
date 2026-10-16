@@ -319,7 +319,7 @@ func conversationMarkdownPath(folderDir string, c Conversation, index int, usedN
 		baseName = fmt.Sprintf("conversation_%d", index+1)
 	}
 
-keyPrefix := folderDir + "\x00"
+	keyPrefix := folderDir + "\x00"
 	key := keyPrefix + strings.ToLower(baseName)
 	count := usedNames[key] + 1
 	for {
@@ -425,7 +425,7 @@ func main() {
 		b.WriteString(title)
 		b.WriteString("\n\n")
 		if id != "" {
-			b.WriteString(fmt.Sprintf("_id: `%s`_\n\n", id))
+			fmt.Fprintf(&b, "_id: `%s`_\n\n", id)
 		}
 
 		// Write the messages section of the markdown
@@ -464,14 +464,14 @@ func main() {
 				// Look up the file blob by its key
 				blob, ok := fileByKey[key]
 				if !ok {
-					b.WriteString(fmt.Sprintf("- **%s**: _missing content for fileKey `%s`_\n", origName, key))
+					fmt.Fprintf(&b, "- **%s**: _missing content for fileKey `%s`_\n", origName, key)
 					continue
 				}
 
 				// Get the attachment payload and resolved name
 				contentBytes, resolvedName, err := attachmentPayload(blob, origName, idx)
 				if err != nil {
-					b.WriteString(fmt.Sprintf("- **%s**: _failed to load attachment payload: %v_\n", origName, err))
+					fmt.Fprintf(&b, "- **%s**: _failed to load attachment payload: %v_\n", origName, err)
 					continue
 				}
 
@@ -484,20 +484,20 @@ func main() {
 				// Resolve the asset path, ensuring no conflicts with existing files
 				dst, err := resolveAssetPath(assetsForConvDir, safeName, contentBytes)
 				if err != nil {
-					b.WriteString(fmt.Sprintf("- **%s**: _failed to resolve attachment path: %v_\n", origName, err))
+					fmt.Fprintf(&b, "- **%s**: _failed to resolve attachment path: %v_\n", origName, err)
 					continue
 				}
 
 				// Write attachment file, honoring the overwrite option.
 				if err := writeFile(dst, contentBytes, *overwrite); err != nil {
-					b.WriteString(fmt.Sprintf("- **%s**: _failed to write attachment: %v_\n", origName, err))
+					fmt.Fprintf(&b, "- **%s**: _failed to write attachment: %v_\n", origName, err)
 					continue
 				}
 
 				// Write the attachment link in the markdown file
 				rel, _ := filepath.Rel(filepath.Dir(mdPath), dst)
 				rel = filepath.ToSlash(rel)
-				b.WriteString(fmt.Sprintf("- **%s**: [%s](%s)\n", origName, filepath.Base(dst), rel))
+				fmt.Fprintf(&b, "- **%s**: [%s](%s)\n", origName, filepath.Base(dst), rel)
 			}
 		}
 
