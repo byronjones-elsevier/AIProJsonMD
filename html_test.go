@@ -76,6 +76,10 @@ func TestMarkdownToHTMLRendersFormatting(t *testing.T) {
 		want string
 	}{
 		{"heading", "# Title", "<h1>Title</h1>"},
+		{"single newline is a line break", "Linux: a\nWindows: b", "<p>Linux: a<br>\nWindows: b</p>"},
+		{"blank line still starts a paragraph", "one\n\ntwo", "<p>one</p>\n<p>two</p>"},
+		{"code block lines are not broken", "```\na\nb\n```", "<pre><code>a\nb\n</code></pre>"},
+		{"list items are not broken", "- a\n- b", "<li>a</li>\n<li>b</li>"},
 		{"emphasis", "**bold** and *italic*", "<strong>bold</strong> and <em>italic</em>"},
 		{"inline code", "use `go test`", "<code>go test</code>"},
 		{"fenced code with language", "```go\nfmt.Println(1)\n```", `<pre><code class="language-go">fmt.Println(1)`},
