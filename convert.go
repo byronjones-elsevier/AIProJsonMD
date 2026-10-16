@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -16,18 +14,26 @@ var linkPathEscaper = strings.NewReplacer("(", "%28", ")", "%29")
 // linkTextEscaper escapes brackets that would end Markdown link text early.
 var linkTextEscaper = strings.NewReplacer("[", `\[`, "]", `\]`)
 
-// converter turns export conversations into Markdown files and extracted attachments.
+// unfiledName is the folder for conversations without a mapped export folder.
+const unfiledName = "Unfiled"
+
+// converter turns export conversations into Markdown and HTML files plus
+// extracted attachments.
 type converter struct {
 	outDir      string
 	assetsDir   string
 	overwrite   bool
+	format      outputFormat
+	html        *htmlRenderer
 	folderPaths map[string]string
 	fileByKey   map[string]FileBlob
 	usedNames   map[string]int
+	index       []indexEntry
 }
 
-// newConverter indexes the export's folders and attachment blobs for lookup during conversion.
-func newConverter(exp Export, outDir, assetsDir string, overwrite bool) *converter {
+// newConverter indexes the export's folders and attachment blobs for lookup
+// during conversion, and prepares the HTML renderer when HTML is requested.
+func newConverter(exp Export, outDir, assetsDir string, overwrite bool, format outputFormat) (*converter, error) {
 	fileByKey := make(map[string]FileBlob, len(exp.Files))
 	for _, fb := range exp.Files {
 		if key := strings.TrimSpace(fb.FileKey); key != "" {
@@ -35,14 +41,23 @@ func newConverter(exp Export, outDir, assetsDir string, overwrite bool) *convert
 		}
 	}
 
-	return &converter{
+	cv := &converter{
 		outDir:      outDir,
 		assetsDir:   assetsDir,
 		overwrite:   overwrite,
+		format:      format,
 		folderPaths: buildFolderPaths(outDir, exp.Folders),
 		fileByKey:   fileByKey,
 		usedNames:   make(map[string]int, len(exp.History)),
 	}
+	if format.writesHTML() {
+		renderer, err := newHTMLRenderer()
+		if err != nil {
+			return nil, err
+		}
+		cv.html = renderer
+	}
+	return cv, nil
 }
 
 // collectConversationFiles returns the unique file references from a
@@ -106,7 +121,7 @@ func buildFolderPaths(outDir string, folders []Folder) map[string]string {
 
 // defaultConversationFolder is where conversations without a mapped folder go.
 func defaultConversationFolder(outDir string) string {
-	return filepath.Join(outDir, "Unfiled")
+	return filepath.Join(outDir, unfiledName)
 }
 
 // conversationMarkdownPath returns a unique Markdown path in folderDir named
@@ -147,129 +162,17 @@ func conversationMarkdownPath(folderDir string, c Conversation, index int, usedN
 	return filepath.Join(folderDir, baseName+".md")
 }
 
-// markdownLink formats a link to a file at the slash-separated relative path rel.
-func markdownLink(text, rel string) string {
+// escapeLinkPath URL-escapes each segment of a slash-separated relative path,
+// including the parentheses that would end a Markdown link destination early.
+func escapeLinkPath(rel string) string {
 	segments := strings.Split(rel, "/")
 	for i, segment := range segments {
 		segments[i] = linkPathEscaper.Replace(url.PathEscape(segment))
 	}
-	return fmt.Sprintf("[%s](%s)", linkTextEscaper.Replace(text), strings.Join(segments, "/"))
+	return strings.Join(segments, "/")
 }
 
-// convertConversation writes the Markdown file and attachments for one
-// conversation. It reports whether the Markdown file was written; an existing
-// file is kept unless overwrite is set. Per-attachment failures are recorded in
-// the Markdown and logged rather than returned.
-func (cv *converter) convertConversation(index int, c Conversation) (bool, error) {
-	folderDir := defaultConversationFolder(cv.outDir)
-	if folderPath, ok := cv.folderPaths[stringValue(c.FolderID)]; ok {
-		folderDir = folderPath
-	}
-	if err := os.MkdirAll(folderDir, dirPerm); err != nil {
-		return false, fmt.Errorf("create conversation folder %q: %w", folderDir, err)
-	}
-
-	title := strings.TrimSpace(c.Name)
-	if title == "" {
-		title = fmt.Sprintf("Conversation %d", index+1)
-	}
-	mdPath := conversationMarkdownPath(folderDir, c, index, cv.usedNames)
-
-	var b strings.Builder
-	b.WriteString("# " + title + "\n\n")
-	if id := strings.TrimSpace(c.ID); id != "" {
-		fmt.Fprintf(&b, "_id: `%s`_\n\n", id)
-	}
-	writeMessages(&b, c.Messages)
-
-	if err := cv.writeAttachments(&b, mdPath, filepath.Join(folderDir, cv.assetsDir), collectConversationFiles(c)); err != nil {
-		return false, err
-	}
-
-	written, err := writeFile(mdPath, []byte(b.String()), cv.overwrite)
-	if err != nil {
-		return false, fmt.Errorf("write markdown: %w", err)
-	}
-	return written, nil
-}
-
-// writeMessages renders the Messages section.
-func writeMessages(b *strings.Builder, messages []Message) {
-	b.WriteString("## Messages\n\n")
-	for _, m := range messages {
-		role := strings.TrimSpace(m.Role)
-		if role == "" {
-			role = "message"
-		}
-		b.WriteString("### " + role + "\n\n")
-		b.WriteString(strings.TrimSpace(m.Content) + "\n\n")
-	}
-}
-
-// writeAttachments extracts each referenced attachment into assetsDir and
-// renders the Attachments section. It returns an error only if assetsDir
-// cannot be created.
-func (cv *converter) writeAttachments(b *strings.Builder, mdPath, assetsDir string, refs []FileRef) error {
-	if len(refs) == 0 {
-		return nil
-	}
-	if err := os.MkdirAll(assetsDir, dirPerm); err != nil {
-		return fmt.Errorf("create assets dir %q: %w", assetsDir, err)
-	}
-
-	b.WriteString("## Attachments\n\n")
-	for idx, ref := range refs {
-		cv.writeAttachment(b, mdPath, assetsDir, idx, ref)
-	}
-	return nil
-}
-
-// writeAttachment extracts one attachment and appends its Markdown list item,
-// or a note explaining why it could not be extracted.
-func (cv *converter) writeAttachment(b *strings.Builder, mdPath, assetsDir string, idx int, ref FileRef) {
-	key := strings.TrimSpace(ref.FileKey)
-	origName := strings.TrimSpace(ref.FileName)
-	if origName == "" {
-		origName = fmt.Sprintf("attachment_%d", idx+1)
-	}
-
-	fail := func(msg string, err error) {
-		slog.Warn("attachment skipped", "name", origName, "reason", msg, "error", err)
-		fmt.Fprintf(b, "- **%s**: _%s: %v_\n", origName, msg, err)
-	}
-
-	blob, ok := cv.fileByKey[key]
-	if !ok {
-		slog.Warn("attachment skipped", "name", origName, "reason", "missing content", "fileKey", key)
-		fmt.Fprintf(b, "- **%s**: _missing content for fileKey `%s`_\n", origName, key)
-		return
-	}
-
-	contentBytes, resolvedName, err := attachmentPayload(blob, origName, idx)
-	if err != nil {
-		fail("failed to load attachment payload", err)
-		return
-	}
-
-	safeName := sanitizeFilename(resolvedName)
-	if safeName == "" {
-		safeName = fmt.Sprintf("attachment_%d", idx+1)
-	}
-
-	dst, err := resolveAssetPath(assetsDir, safeName, contentBytes)
-	if err != nil {
-		fail("failed to resolve attachment path", err)
-		return
-	}
-	if _, err := writeFile(dst, contentBytes, cv.overwrite); err != nil {
-		fail("failed to write attachment", err)
-		return
-	}
-
-	rel, err := filepath.Rel(filepath.Dir(mdPath), dst)
-	if err != nil {
-		fail("failed to link attachment", err)
-		return
-	}
-	fmt.Fprintf(b, "- **%s**: %s\n", origName, markdownLink(filepath.Base(dst), filepath.ToSlash(rel)))
+// markdownLink formats a link to a file at the slash-separated relative path rel.
+func markdownLink(text, rel string) string {
+	return fmt.Sprintf("[%s](%s)", linkTextEscaper.Replace(text), escapeLinkPath(rel))
 }

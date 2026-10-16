@@ -35,8 +35,9 @@ root `Agents.md`.
   cases).
 - Use the standard library's `testing` package and explicit assertions, matching
   the existing test suite. This deliberately overrides the global `testify`
-  preference: the project has no third-party dependencies and should stay that
-  way.
+  preference. The project's only third-party dependency is the Markdown
+  renderer used for HTML export; keep the dependency set to what the product
+  needs.
 - Test files live alongside source (`_test.go`). Integration tests use
   `//go:build integration`.
 - Mock interfaces, not concrete types. Prefer `testify/mock` or hand-rolled fakes.

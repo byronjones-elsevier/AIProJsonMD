@@ -9,17 +9,24 @@ decisions, verification status, or known risks change.
 `AIProJsonMD` is a single-binary Go CLI that converts an exported AI Pro chat
 JSON file into:
 
-- one Markdown file per conversation
+- one Markdown file per conversation (`-format md`, the default), one
+  self-contained HTML file per conversation (`-format html`), or both
+  (`-format both`)
+- with HTML output, an `index.html` at the top of the output directory linking
+  every conversation
 - one output subfolder per export folder name, plus `Unfiled` for chats without
   a mapped folder
 - one flat `assets/` directory inside each output folder holding extracted
-  attachments, linked from the Markdown
+  attachments, linked from the Markdown and HTML
 
 Usage and flags are documented in [README.md](README.md).
 
 ## Tech Stack
 
-- Go 1.26+, standard library only (no third-party dependencies)
+- Go 1.26+
+- One runtime dependency, [`github.com/yuin/goldmark`](https://github.com/yuin/goldmark)
+  (v1.8.6), used only to render message Markdown to HTML. Everything else is
+  the standard library.
 - Module path `github.com/byronjones-elsevier/AIProJsonMD`
 - GNU Make for tasks, `golangci-lint` for linting, `govulncheck` for
   vulnerability scans (the last two are optional tools, not dependencies)
@@ -30,11 +37,16 @@ Usage and flags are documented in [README.md](README.md).
 | --- | --- |
 | `main.go` | Flag parsing and `run(args, stdout) error`; `main` logs the error and exits 1 |
 | `model.go` | Types for the export JSON: `Export`, `Conversation`, `Folder`, `Message`, `FileRef`, `FileBlob` |
-| `convert.go` | Conversion: folder paths, Markdown file naming, message and attachment rendering |
+| `format.go` | The `-format` value: `outputFormat`, `parseFormat`, `ErrInvalidFormat` |
+| `convert.go` | Converter setup and helpers: folder paths, file naming, link escaping |
+| `conversation.go` | Per-conversation work: attachment extraction, Markdown rendering, writing Markdown, HTML, and the index |
+| `html.go` | HTML rendering: page and index templates, the goldmark renderer, raw-HTML escaping |
 | `files.go` | File helpers: filename sanitizing, no-clobber writes, base64 decoding, attachment payload and path resolution |
 | `main_test.go` | Original tests for `writeFile`, `attachmentPayload`, `decodeBase64Payload`, `conversationMarkdownPath` |
 | `files_test.go` | Table-driven tests for the `files.go` helpers |
-| `convert_test.go` | Tests for `convert.go` helpers and end-to-end `run` tests on a synthetic export |
+| `convert_test.go` | Tests for `convert.go` helpers and end-to-end Markdown `run` tests on a synthetic export |
+| `html_test.go` | HTML tests: Markdown rendering, raw-HTML and URL safety, page and index output, `-format` runs |
+| `go.mod`, `go.sum` | Module definition with the goldmark dependency and its checksums |
 | `Makefile` | Build, test, lint, and help targets (see `make help`) |
 | `Agents.md`, `agents/` | Agent guidance and the topic files it routes to |
 | `.markdownlint.json` | Markdown lint configuration |
@@ -47,24 +59,54 @@ Usage and flags are documented in [README.md](README.md).
 
 `run` is the only orchestrator:
 
-1. Parse flags (`-in`, `-out`, `-assets`, `-overwrite`) with a `flag.FlagSet`
-   so `run` is testable.
+1. Parse flags (`-in`, `-out`, `-assets`, `-format`, `-overwrite`) with a
+   `flag.FlagSet` so `run` is testable, and validate `-assets` and `-format`.
 2. Read and unmarshal the input into `Export`. An empty `history` is an error.
-3. `newConverter` indexes top-level `files` by `fileKey` and builds the folder
-   ID to output path map (sanitized names, numeric suffix for duplicates).
+3. `newConverter` indexes top-level `files` by `fileKey`, builds the folder
+   ID to output path map (sanitized names, numeric suffix for duplicates), and
+   creates the HTML renderer when the format includes HTML.
 4. For each conversation, `convertConversation`:
    1. picks the folder from `folderId`, falling back to `Unfiled`
-   2. picks a unique Markdown path from the conversation name
-   3. renders the title, ID, and messages
-   4. merges conversation-level and message-level attachment refs,
+   2. picks a unique base name from the conversation name; the `.md` and
+      `.html` files share it
+   3. merges conversation-level and message-level attachment refs,
       de-duplicates them, and extracts each blob into `<folder>/assets/`
-   5. writes the Markdown file
-5. Print how many Markdown files were written.
+      once, producing a list of `attachment` values
+   4. renders and writes the Markdown file (`renderMarkdown`) and/or the HTML
+      file (`htmlRenderer.renderConversation`) from the same data, and records
+      an index entry for the HTML file
+5. `writeIndex` renders `index.html` from the collected entries (HTML formats
+   only).
+6. Print how many files of each format were written.
 
 Error handling: fatal errors are wrapped with `%w` and returned to `main`,
 which logs them once with `slog` and exits 1. Per-attachment failures do not
-stop the run; they are written into the Markdown as a note and logged with
+stop the run; they are written into the output as a note and logged with
 `slog.Warn`.
+
+### HTML rendering and safety
+
+Chat content is untrusted, so the HTML path is built to stay safe even if one
+layer fails:
+
+- Page structure uses `html/template`, which escapes every interpolated value
+  (titles, IDs, roles, attachment names, failure notes).
+- Message bodies go through goldmark with the Table, Strikethrough, and
+  TaskList extensions. goldmark is used in its default safe mode, so links and
+  images with `javascript:`, `vbscript:`, `file:`, and non-image `data:` URLs
+  lose their `href` or `src`.
+- Raw HTML in a message is shown as escaped text, not passed through and not
+  dropped. goldmark's safe mode alone would replace it with
+  `<!-- raw HTML omitted -->` and lose the text, so `escapeRawHTML` overrides
+  the two node renderers (`RawHTML`, `HTMLBlock`).
+- The role shown on a message never reaches a CSS class directly; `roleClass`
+  maps it to a fixed set.
+- Each page carries a `Content-Security-Policy` meta tag
+  (`default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;
+  base-uri 'none'`) and contains no JavaScript, so scripts and external
+  resources are blocked even if an escaping bug appeared.
+- Image attachments are shown inline from the local `assets/` directory.
+  External images referenced in Markdown are blocked by the policy.
 
 ## Schema Quirks Observed
 
@@ -89,13 +131,30 @@ stop the run; they are written into the Markdown as a note and logged with
   check-then-write race. `-overwrite` replaces them.
 - **Fail fast on fatal errors, degrade on attachments.** Rejected: collecting
   every error into a summary, which adds complexity for a one-shot tool.
-- **Standard library `testing`, not testify.** Decided deliberately: the
-  project has no third-party dependencies, so there is no `go.sum` and almost
-  nothing for `govulncheck` to scan beyond the standard library. The suite is
-  table-driven and readable without assertion helpers. This is an intentional
+- **Standard library `testing`, not testify.** Decided deliberately: the suite
+  is table-driven and readable without assertion helpers, and the project
+  keeps its dependency set to what the product needs. This is an intentional
   project-level override of the global `testify` preference. Rejected: adding
-  `testify`, which would add the first dependency and rewrite about 60
+  `testify`, which would add a test-only dependency and rewrite about 60
   assertions for little gain.
+- **HTML export uses goldmark.** Chosen over a hand-written renderer, which
+  would stay dependency-free but would need to reproduce fenced code, nested
+  lists, and tables correctly, and over escaped plain text, which is the safest
+  but hard to read. Real chat history is heavy on all three: in the sample
+  export, about 30% of messages had fenced code and nearly half had lists. This
+  ended the earlier "no third-party dependencies" position, so `go.sum`,
+  Dependabot's `gomod` updates, and `govulncheck` now cover a real dependency.
+- **`-format md|html|both`, default `md`.** Existing invocations behave exactly
+  as before. Rejected: a boolean `-html` flag, which cannot produce HTML only.
+- **`index.html` for HTML output.** One page at the top of the output
+  directory lists every conversation grouped by folder (alphabetical, `Unfiled`
+  last). It is only written for `html` and `both`. Like other output files it is
+  kept, not rewritten, when it already exists unless `-overwrite` is set, so
+  re-running with new conversations needs `-overwrite` to refresh it.
+- **One extraction, two renderers.** Attachments are extracted once into a
+  neutral `attachment` list that both renderers read, so the Markdown output
+  stays byte-identical to the pre-HTML version and the two formats cannot
+  disagree about file names.
 - **`-assets` must be a single directory name.** Empty, `.`, `..`, absolute
   paths, path separators, and control characters are rejected with
   `ErrInvalidAssetsDir`. Rejected: allowing nested relative paths, which needs
@@ -119,9 +178,9 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
 
 - `gofmt -l .` reports nothing.
 - `go vet ./...` is clean.
-- `golangci-lint run ./...` reports 0 issues (default linters).
-- `go test -race -cover ./...` passes with 88.8% statement coverage (89.7% on
-  Go 1.27.1; the difference is the toolchain's instrumentation, not the tests).
+- `golangci-lint run ./...` reports 0 issues (standard linters plus
+  `errorlint`, `gosec`, `misspell`, `revive`, `unconvert`).
+- `go test -race -cover ./...` passes with 90.2% statement coverage.
 - `make help`, `make all`, `make test/cover`, `make clean`, and the `make run`
   guard without `IN` behave as documented.
 - `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
@@ -138,8 +197,8 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   -6613, -6617) in `net/http` server and HTTP/2 code. The tool only calls
   `http.DetectContentType` and never starts an HTTP server or client, so those
   traces went through `init` and `io.Writer` dispatch rather than real HTTP
-  use. Upgrading the toolchain cleared them. There are no third-party
-  dependencies.
+  use. Upgrading the toolchain cleared them. The scan was repeated after adding
+  goldmark and still reports no vulnerabilities.
 - Output of the pre-refactor build (from `main`) and the refactored build,
   both run on a real export of 40 conversations and diffed. The file trees
   matched (47 files each). One Markdown file differed: three attachment links
@@ -150,8 +209,28 @@ Checked on 2026-10-16 with Go 1.27.2 and `golangci-lint` 2.15.0 on macOS:
   were byte-identical. The longest file name was 42 bytes in both, so the
   200-byte cap did not trigger. The only difference was permissions: every file
   went from `0644` to `0600`, and every directory from `0754` to `0700`.
+- `main` before HTML export (`796b2bc`) versus the HTML build, run on the same
+  real export (`-format both` for the new build). Markdown content and
+  attachments were byte-identical in all 47 files. Five Markdown files were
+  renamed: conversation names that ended in a space (truncated chat titles
+  such as "Please review this confluence") lost the trailing space, which
+  Windows does not allow. The content of all five was identical. This comes
+  from the Windows-name change, not from HTML; re-running into an existing
+  output directory without `-overwrite` leaves the old and the new name side by
+  side.
+- Generated HTML on the real export: 40 conversation pages plus `index.html`.
+  An audit found no `script`, `iframe`, `object`, `embed`, `form`, `base`, or
+  `link` elements and no event-handler attributes; every page has the
+  Content-Security-Policy meta tag; all 98 link and image targets that point at
+  local files exist. The only URL schemes present were `https` (11), `mailto`
+  (36, from email autolinks), and relative paths. 4 image attachments rendered
+  inline. 5 tables, 214 code blocks, and 1,551 list items were rendered.
 
 Not exercised:
+
+- Viewing the pages in a browser. Structure, safety, and link integrity were
+  checked programmatically and by unit tests, but the visual styling (dark mode,
+  wide tables, long code lines) has not been looked at.
 
 - `make install`.
 - Windows. Filename sanitizing covers its reserved characters and reserved

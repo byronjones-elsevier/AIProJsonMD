@@ -9,6 +9,7 @@ GOFLAGS ?=
 GOVULNCHECK_VERSION ?= v1.9.0
 OUT_DIR ?= out_markdown
 ASSETS_DIR ?= assets
+FORMAT ?= md
 
 .DEFAULT_GOAL := help
 .PHONY: help default all deps fmt fmt/check vet lint test test/race test/cover vuln build install run clean
@@ -65,10 +66,10 @@ build: deps
 install: deps
 	$(GO) install $(GOFLAGS) .
 
-## Run the converter: make run IN=<export.json> [OUT_DIR=out_markdown] [ASSETS_DIR=assets]
+## Run the converter: make run IN=<export.json> [FORMAT=md|html|both] [OUT_DIR=out_markdown] [ASSETS_DIR=assets]
 run: deps
-	@test -n "$(IN)" || { echo "Usage: make run IN=<export.json> [OUT_DIR=$(OUT_DIR)] [ASSETS_DIR=$(ASSETS_DIR)]" >&2; exit 1; }
-	$(GO) run $(GOFLAGS) . -in "$(IN)" -out "$(OUT_DIR)" -assets "$(ASSETS_DIR)"
+	@test -n "$(IN)" || { echo "Usage: make run IN=<export.json> [FORMAT=$(FORMAT)] [OUT_DIR=$(OUT_DIR)] [ASSETS_DIR=$(ASSETS_DIR)]" >&2; exit 1; }
+	$(GO) run $(GOFLAGS) . -in "$(IN)" -out "$(OUT_DIR)" -assets "$(ASSETS_DIR)" -format "$(FORMAT)"
 
 ## Remove build artifacts
 clean:

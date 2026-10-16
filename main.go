@@ -23,9 +23,10 @@ var ErrNoHistory = errors.New("no history entries found")
 func run(args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("AIProJsonMD", flag.ContinueOnError)
 	inPath := flags.String("in", "", "Path to input JSON file")
-	outDir := flags.String("out", "out_markdown", "Output directory for markdown files")
+	outDir := flags.String("out", "out_markdown", "Output directory for generated files")
 	assetsDir := flags.String("assets", "assets", "Per-folder assets directory name")
-	overwrite := flags.Bool("overwrite", false, "Overwrite existing markdown and attachment files")
+	formatFlag := flags.String("format", string(formatMarkdown), "Output format: md, html, or both")
+	overwrite := flags.Bool("overwrite", false, "Overwrite existing output and attachment files")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -35,6 +36,10 @@ func run(args []string, stdout io.Writer) error {
 		return ErrMissingInput
 	}
 	if err := validateAssetsDir(*assetsDir); err != nil {
+		return err
+	}
+	format, err := parseFormat(*formatFlag)
+	if err != nil {
 		return err
 	}
 
@@ -55,20 +60,46 @@ func run(args []string, stdout io.Writer) error {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
-	cv := newConverter(export, *outDir, *assetsDir, *overwrite)
-	written := 0
+	cv, err := newConverter(export, *outDir, *assetsDir, *overwrite, format)
+	if err != nil {
+		return err
+	}
+
+	var markdownWritten, htmlWritten int
 	for i, c := range export.History {
-		ok, err := cv.convertConversation(i, c)
+		res, err := cv.convertConversation(i, c)
 		if err != nil {
 			return fmt.Errorf("conversation %d: %w", i, err)
 		}
-		if ok {
-			written++
+		if res.markdown {
+			markdownWritten++
+		}
+		if res.html {
+			htmlWritten++
 		}
 	}
 
-	_, err = fmt.Fprintf(stdout, "Done. Wrote %d of %d markdown files to %s\nAttachments written under per-folder %s directories\n",
-		written, len(export.History), *outDir, *assetsDir)
+	indexWritten, err := cv.writeIndex()
+	if err != nil {
+		return err
+	}
+
+	total := len(export.History)
+	lines := []string{}
+	if format.writesMarkdown() {
+		lines = append(lines, fmt.Sprintf("Wrote %d of %d markdown files to %s", markdownWritten, total, *outDir))
+	}
+	if format.writesHTML() {
+		index := "kept"
+		if indexWritten {
+			index = "written"
+		}
+		lines = append(lines, fmt.Sprintf("Wrote %d of %d HTML files to %s (index.html %s)", htmlWritten, total, *outDir, index))
+	}
+	lines[0] = "Done. " + lines[0]
+	lines = append(lines, fmt.Sprintf("Attachments written under per-folder %s directories", *assetsDir))
+
+	_, err = fmt.Fprintln(stdout, strings.Join(lines, "\n"))
 	return err
 }
 
