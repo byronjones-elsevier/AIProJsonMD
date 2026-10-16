@@ -1,22 +1,24 @@
 # AIProJsonMD
 
-`AIProJsonMD` is a small Go command-line tool that converts an AI chat export JSON file into a set of Markdown files, grouped by export folder, with attachments written into a local `assets` directory inside each output folder.
+`AIProJsonMD` is a small Go command-line tool that converts an AI chat export JSON file into a set of Markdown files, HTML files, or both, grouped by export folder, with attachments written into a local `assets` directory inside each output folder.
 
 ## What It Does
 
 - Reads a JSON export file with conversation history and file blobs.
-- Writes one Markdown file per conversation.
+- Writes one Markdown file per conversation (default), one HTML file per conversation, or both, selected with `-format`.
+- With HTML output, also writes an `index.html` that links every conversation, grouped by folder.
 - Groups conversations into subfolders under `out_markdown/` using the export `folderId` to top-level `folders` mapping.
 - Preserves message roles and content.
 - Places conversations without a mapped folder into `out_markdown/Unfiled/`.
 - Extracts attachment content into a local flat `assets/` directory inside each output folder.
 - Collects attachment references from both conversation-level `files` arrays and message-level `files` arrays.
 - Decodes `imageBase64` payloads into image files when an attachment blob does not have plain-text `content`.
-- Adds relative links from each Markdown file to its extracted attachments.
+- Adds relative links from each Markdown or HTML file to its extracted attachments, and shows image attachments inline in HTML.
 
 ## Requirements
 
 - Go 1.26 or newer
+- One Go module dependency, `github.com/yuin/goldmark`, fetched automatically by `go build`
 - Optional, for `make lint` and `make vuln`: `golangci-lint` and `govulncheck`
 
 ## Build
@@ -31,7 +33,9 @@ Without `make`, run `go build -o AIProJsonMD .`.
 ## Run
 
 ```bash
-make run IN=export.json
+make run IN=export.json                  # Markdown (default)
+make run IN=export.json FORMAT=html      # HTML and index.html
+make run IN=export.json FORMAT=both      # Markdown and HTML
 ```
 
 Or run the built binary directly:
@@ -46,9 +50,10 @@ errors are logged to stderr, and a fatal error exits with status 1.
 ## Flags
 
 - `-in`: path to the input JSON export file. Required.
-- `-out`: directory for generated Markdown files. Default: `out_markdown`
+- `-out`: directory for generated files. Default: `out_markdown`
+- `-format`: output format. `md` writes Markdown only, `html` writes HTML and `index.html` only, `both` writes all of them. Default: `md`
 - `-assets`: name of the per-folder assets directory created inside each output folder. Default: `assets`. Must be a single directory name: empty values, `.`, `..`, and anything containing a path separator are rejected.
-- `-overwrite`: overwrite existing markdown and attachment files. Default: `false`
+- `-overwrite`: overwrite existing output and attachment files, including `index.html`. Default: `false`
 
 ## Expected Input Shape
 
@@ -114,21 +119,38 @@ Notes about the export schema:
 
 After a successful run:
 
-- Markdown files are written to named subfolders under `out_markdown/`
-- Attachments are written to `assets/` inside the same folder as the related markdown files
+- Markdown and HTML files are written to named subfolders under `out_markdown/`
+- Attachments are written to `assets/` inside the same folder as the related conversation files
+- With `-format html` or `-format both`, `index.html` is written at the top of the output directory
 
-Example:
+Example with `-format both`:
 
 ```text
 out_markdown/
+  index.html
   Bash Projects/
     Deploy script review.md
+    Deploy script review.html
     Deploy script review_2.md
+    Deploy script review_2.html
     assets/
       notes.txt
   Unfiled/
     2b3c4d5e6f_2.md
+    2b3c4d5e6f_2.html
 ```
+
+## HTML Output
+
+Each HTML file is a standalone page with embedded CSS, no JavaScript, and a light or dark theme that follows your system setting. Message text is rendered from Markdown, including fenced code blocks, lists, tables, headings, links, and strikethrough. Image attachments appear inline; other attachments are links into `assets/`.
+
+Chat content is treated as untrusted:
+
+- Raw HTML written in a message, such as `<script>` or `<div>`, is shown as literal escaped text. It is never executed or dropped.
+- Links and images using `javascript:`, `vbscript:`, `file:`, or non-image `data:` URLs are rendered without a link.
+- Each page includes a Content-Security-Policy that blocks scripts and all external resources, so remote images in a chat are not loaded.
+
+`index.html` lists conversations grouped by folder, alphabetically, with `Unfiled` last. Like every other output file, it is kept if it already exists; use `-overwrite` to regenerate it after adding conversations.
 
 ## Notes
 
