@@ -30,7 +30,7 @@ Last updated: 2026-10-16 (UTC), by Claude Sonnet 5.5 via Claude Code.
 
 | Item | State | What is left |
 | --- | --- | --- |
-| Branch `docs/spec-handoff-changelog` | Uncommitted: rewritten `ENGINEERING.md`, new `HANDOFF.md`, `CHANGELOG.md`, `spec_test.go`, `run_test.go`, updates to `AGENTS.md`, `README.md`, `agents/coding.md`. No PR. | Act on the round 2 independent specification review (a fresh AI reviewer given only `ENGINEERING.md`), update the `CHANGELOG.md` entry with the final commit SHAs and timestamps, lint, commit, and hand the push to Byron. |
+| Branch `docs/spec-handoff-changelog` | Committed locally (`2bbae52` plus a changelog-finalizing commit), not pushed, no PR. Contains the rewritten `ENGINEERING.md`, new `HANDOFF.md` and `CHANGELOG.md`, `spec_test.go`, `run_test.go`, and updates to `AGENTS.md`, `README.md`, `agents/coding.md`. | Byron pushes it (`git push -u origin docs/spec-handoff-changelog`); the agent then opens the PR against `main`. After it merges, remove this row, move its `CHANGELOG.md` status to merged with the merge time, and update the "Status" section above. |
 | Global standard `~/.claude/agents/coding.md` | Edited in Byron's working tree, uncommitted, in the `ByronScottJones/agents` repository. Contains two changes: consistent `AGENTS.md` spelling, and the new "Project Specification, Handoff, and Changelog" section. | Byron reviews (`git -C ~/.claude/agents diff`) and publishes through his usual pull request flow. The project copy `agents/coding.md` must stay byte-identical to it. |
 
 ## 4. Outstanding work

@@ -36,12 +36,16 @@ Conventions:
 
 ### docs/spec-handoff-changelog: specification, handoff, and changelog files (no PR yet)
 
-- Branch: `docs/spec-handoff-changelog`, base `main` (`590c032`); no PR yet; commits not yet made
-- Status: open
-- Started: after 2026-10-16T17:03:46Z (branch created from `main` once PR #19
-  merged); first commit pending
-- Worked on by: Byron Jones (requested the change and the three-file model);
-  Claude Sonnet 5.5 via Claude Code (author)
+- Branch: `docs/spec-handoff-changelog`, base `main` (`590c032`); PR not yet
+  opened; commits `2bbae52` and the commit that finalized this entry (a commit
+  cannot name its own SHA)
+- Status: open (awaiting push and PR)
+- Started: 2026-10-16T17:30:09Z (first commit; the branch was created from `main`
+  after PR #19 merged at 17:03:46Z)
+- Last commit: 2026-10-16T17:30:09Z for `2bbae52`; the finalizing commit is a few
+  minutes later
+- Worked on by: Byron Jones (requested the change and the three-file model;
+  will push and merge); Claude Sonnet 5.5 via Claude Code (author)
 - What it does:
   - Refactors the global standard `~/.claude/agents/coding.md` (outside this
     repository) so `ENGINEERING.md` is the primary specification, `HANDOFF.md`
