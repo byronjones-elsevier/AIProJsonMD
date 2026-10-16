@@ -10,3 +10,6 @@ in_json/
 # Generated output
 out_markdown/
 out_assets/
+
+# Test coverage output
+coverage.out
