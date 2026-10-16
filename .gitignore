@@ -1,7 +1,11 @@
+#Apple File Systems Artifacts
 .DS_Store
 
 # Build artifacts
 AIProJsonMD
+
+#Input Files
+in_json/
 
 # Generated output
 out_markdown/
