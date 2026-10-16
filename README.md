@@ -144,13 +144,22 @@ out_markdown/
 
 ## HTML Output
 
-Each HTML file is a standalone page with embedded CSS, no JavaScript, and a light or dark theme that follows your system setting. Message text is rendered from Markdown, including fenced code blocks, lists, tables, headings, links, and strikethrough. A single newline in a message is kept as a line break, as it would be in the chat, and a blank line starts a new paragraph. Image attachments appear inline; other attachments are links into `assets/`.
+
+Each HTML file is a standalone page with embedded CSS, no external files or scripts, and a light or dark theme that follows your system setting. Message text is rendered from Markdown, including fenced code blocks, lists, tables, headings, links, and strikethrough. Image attachments appear inline; other attachments are links into `assets/`.
 
 Chat content is treated as untrusted:
 
 - Raw HTML written in a message, such as `<script>` or `<div>`, is shown as literal escaped text. It is never executed or dropped.
 - Links and images using `javascript:`, `vbscript:`, `file:`, or non-image `data:` URLs are rendered without a link.
-- Each page includes a Content-Security-Policy that blocks scripts and all external resources, so remote images in a chat are not loaded.
+- Each page includes a Content-Security-Policy that blocks all external resources, so remote images in a chat are not loaded, and allows no script except the copy-button script described below.
+
+### Copy buttons
+
+Every code block has a **Copy** button in its top-right corner that copies the block's text to the clipboard and briefly shows "Copied!" (or "Failed"). The button is keyboard-focusable, labelled for screen readers, announces the result, and is hidden when printing.
+
+- The buttons are added by one small script built into the page, so with scripts disabled the page still shows plain code blocks and no dead buttons.
+- Only pages that contain a code block include the script. The page's Content-Security-Policy allows that one script by its SHA-256 hash and nothing else, so the script cannot be replaced or added to, even by hostile text in a chat.
+- It uses the browser's Clipboard API and falls back to the older copy command for pages opened straight from disk in browsers that restrict the newer one.
 
 ### Navigation
 
