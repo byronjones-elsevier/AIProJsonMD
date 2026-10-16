@@ -68,6 +68,18 @@ func TestBuildFolderPaths(t *testing.T) {
 	}
 }
 
+func TestReservedWindowsNamesAreEscapedInPaths(t *testing.T) {
+	path := conversationMarkdownPath("out", Conversation{Name: "CON"}, 0, map[string]int{})
+	if want := filepath.Join("out", "_CON.md"); path != want {
+		t.Fatalf("conversation path = %q, want %q", path, want)
+	}
+
+	folders := buildFolderPaths("out", []Folder{{ID: "1", Name: "nul"}})
+	if want := filepath.Join("out", "_nul"); folders["1"] != want {
+		t.Fatalf("folder path = %q, want %q", folders["1"], want)
+	}
+}
+
 func TestMarkdownLink(t *testing.T) {
 	tests := []struct {
 		name string
