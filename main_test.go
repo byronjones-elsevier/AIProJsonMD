@@ -11,10 +11,10 @@ func TestWriteFile_NoOverwritePreservesExisting(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.txt")
 
-	if err := writeFile(path, []byte("first"), false); err != nil {
+	if _, err := writeFile(path, []byte("first"), false); err != nil {
 		t.Fatalf("initial write failed: %v", err)
 	}
-	if err := writeFile(path, []byte("second"), false); err != nil {
+	if _, err := writeFile(path, []byte("second"), false); err != nil {
 		t.Fatalf("second write failed: %v", err)
 	}
 
@@ -31,10 +31,10 @@ func TestWriteFile_OverwriteReplacesExisting(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.txt")
 
-	if err := writeFile(path, []byte("first"), false); err != nil {
+	if _, err := writeFile(path, []byte("first"), false); err != nil {
 		t.Fatalf("initial write failed: %v", err)
 	}
-	if err := writeFile(path, []byte("second"), true); err != nil {
+	if _, err := writeFile(path, []byte("second"), true); err != nil {
 		t.Fatalf("overwrite write failed: %v", err)
 	}
 
