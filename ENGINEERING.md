@@ -1,102 +1,139 @@
 # Engineering Notes
 
-## Scope
+Handover notes for the engineer or agent continuing this work. Read them before
+making changes, and update them in the same change set when architecture,
+decisions, verification status, or known risks change.
 
-This repository contains a single Go CLI, `AIProJsonMD`, that converts an exported AI chat JSON file into:
+## What This Is
+
+`AIProJsonMD` is a single-binary Go CLI that converts an exported AI Pro chat
+JSON file into:
 
 - one Markdown file per conversation
-- one output subfolder per export folder name, plus `Unfiled` for chats without a mapped folder
-- one local flat `assets` directory inside each output folder
+- one output subfolder per export folder name, plus `Unfiled` for chats without
+  a mapped folder
+- one flat `assets/` directory inside each output folder holding extracted
+  attachments, linked from the Markdown
 
-The implementation currently lives entirely in `main.go`.
+Usage and flags are documented in [README.md](README.md).
 
-## Build And Run
+## Tech Stack
 
-```bash
-go build -o AIProJsonMD
-go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
-go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown -overwrite
-```
+- Go 1.26+, standard library only (no third-party dependencies)
+- Module path `github.com/byronjones-elsevier/AIProJsonMD`
+- GNU Make for tasks, `golangci-lint` for linting, `govulncheck` for
+  vulnerability scans (the last two are optional tools, not dependencies)
 
-## Data Model
+## File Map
 
-The parser expects three main shapes:
+| File | Purpose |
+| --- | --- |
+| `main.go` | Flag parsing and `run(args, stdout) error`; `main` logs the error and exits 1 |
+| `model.go` | Types for the export JSON: `Export`, `Conversation`, `Folder`, `Message`, `FileRef`, `FileBlob` |
+| `convert.go` | Conversion: folder paths, Markdown file naming, message and attachment rendering |
+| `files.go` | File helpers: filename sanitizing, no-clobber writes, base64 decoding, attachment payload and path resolution |
+| `main_test.go` | Original tests for `writeFile`, `attachmentPayload`, `decodeBase64Payload`, `conversationMarkdownPath` |
+| `files_test.go` | Table-driven tests for the `files.go` helpers |
+| `convert_test.go` | Tests for `convert.go` helpers and end-to-end `run` tests on a synthetic export |
+| `Makefile` | Build, test, lint, and help targets (see `make help`) |
+| `Agents.md`, `agents/` | Agent guidance and the topic files it routes to |
+| `.markdownlint.json` | Markdown lint configuration |
+| `in_json/`, `out_markdown/` | Local input and generated output; both are gitignored |
 
-- `Export`: top-level document with `history` and `files`
-- `Conversation`: one chat thread with metadata, messages, optional conversation-level file refs, and an optional `folderId`
-- `Folder`: top-level folder metadata keyed by folder ID
-- `FileBlob`: top-level attachment payload keyed by `fileKey`
+## Architecture
 
-Attachment references can appear in two places:
+`run` is the only orchestrator:
 
-- `history[].files`
-- `history[].messages[].files`
+1. Parse flags (`-in`, `-out`, `-assets`, `-overwrite`) with a `flag.FlagSet`
+   so `run` is testable.
+2. Read and unmarshal the input into `Export`. An empty `history` is an error.
+3. `newConverter` indexes top-level `files` by `fileKey` and builds the folder
+   ID to output path map (sanitized names, numeric suffix for duplicates).
+4. For each conversation, `convertConversation`:
+   1. picks the folder from `folderId`, falling back to `Unfiled`
+   2. picks a unique Markdown path from the conversation name
+   3. renders the title, ID, and messages
+   4. merges conversation-level and message-level attachment refs,
+      de-duplicates them, and extracts each blob into `<folder>/assets/`
+   5. writes the Markdown file
+5. Print how many Markdown files were written.
 
-The converter merges both sources for each conversation, de-duplicates them, and resolves each reference against the top-level `files` collection.
-
-Folder placement is driven by:
-
-- `history[].folderId`
-- `folders[].id` and `folders[].name`
-
-## Current Processing Flow
-
-1. Parse the input JSON into `Export`.
-2. Build a `map[string]FileBlob` by `fileKey` from the top-level `files` array.
-3. Build a folder ID to output path map from the top-level `folders` array.
-4. For each conversation:
-5. Resolve the output folder from `folderId`, or fall back to `out_markdown/Unfiled/`.
-6. Compute a short hash from the conversation ID.
-7. Merge conversation-level and message-level attachment refs.
-8. Write one Markdown file containing title, ID, messages, and attachment links.
-9. Write attachment payloads under `<folder>/assets/`.
+Error handling: fatal errors are wrapped with `%w` and returned to `main`,
+which logs them once with `slog` and exits 1. Per-attachment failures do not
+stop the run; they are written into the Markdown as a note and logged with
+`slog.Warn`.
 
 ## Schema Quirks Observed
 
-- `fileSize` is not stable across the export and may be either a string or a number.
-- Some conversations have empty `files` arrays even when message-level attachments exist.
-- Some conversations have `folderId: null`, so they fall back to `Unfiled`.
-- Attachment payloads may be in `files[].content` or `files[].imageBase64`.
-- `fileType` can help infer an image file extension when the attachment name does not include one.
+- `fileSize` is a string in some places and a number in others, so it is typed
+  `any`. It is not used.
+- `folderId` can be `null`; those conversations go to `Unfiled`.
+- Some conversations have empty `files` even when message-level attachments
+  exist, so both sources are merged.
+- Attachment payloads are in `files[].content` or `files[].imageBase64`. The
+  base64 value may be a data URI, may contain line breaks, and may be unpadded.
+- `fileType` helps infer an extension for images whose name has none.
 
-## Current Limitations
+## Key Decisions
 
-- Base64 image payloads are decoded and written as binary files when `content` is empty.
-- Existing markdown and attachment files are intentionally not overwritten unless `-overwrite` is enabled.
-- Flattened per-folder assets can create filename collisions, so the program appends numeric suffixes when needed.
-- Image extension inference currently handles common web image types via `fileType` or `http.DetectContentType`.
-- Markdown filenames use a hash plus ordinal index rather than the conversation title.
-- Duplicate export folder names are disambiguated with a numeric suffix in the output tree.
-- The program exits on parse or write failures instead of collecting partial error summaries.
+- **Markdown names come from the conversation name.** Chosen in PRs #1 and #2.
+  Rejected: hash plus index names, which are stable but unreadable. The hash
+  form remains as the fallback for unnamed conversations.
+- **Flat `assets/` per folder with collision handling.** Identical content is
+  reused; different content with the same name gets `_2`, `_3`, ... Rejected:
+  a subdirectory per conversation, which makes links longer and the tree deeper.
+- **No overwrite by default.** Files are created with `O_EXCL`, which avoids a
+  check-then-write race. `-overwrite` replaces them.
+- **Fail fast on fatal errors, degrade on attachments.** Rejected: collecting
+  every error into a summary, which adds complexity for a one-shot tool.
+- **Standard library `testing`, not testify.** Matches the project copy of
+  `agents/go.md` and the original tests. The global standard prefers testify;
+  see Remaining Risks.
+- **No `context.Context` parameters.** The tool does short, local file I/O
+  with no cancellable work, so there is nothing to propagate.
 
-## Verification
+## Verified
 
-Validated in this workspace with:
+Checked on 2026-10-16 with Go 1.27.1 on macOS:
+
+- `gofmt -l .` reports nothing.
+- `go vet ./...` is clean.
+- `golangci-lint run ./...` reports 0 issues (default linters).
+- `go test -race -cover ./...` passes with 89% statement coverage.
+- `make help`, `make all`, `make test/cover`, `make clean`, and the `make run`
+  guard without `IN` behave as documented.
+- `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
+  a missing blob, an image attachment, names with spaces and parentheses, and
+  the overwrite and no-overwrite paths.
+
+Not exercised:
+
+- A run against a real, large export after the refactor. The pre-refactor
+  output was not diffed against the new output.
+- `govulncheck` (not installed on the development machine) and `make install`.
+- Windows. Filename sanitizing covers its reserved characters but not reserved
+  names such as `CON`.
+
+## Remaining Risks and Possible Work
+
+- `-assets` is joined into the output path without validation, so a value such
+  as `../x` writes outside the output folder. The accepted validation rule has
+  not been decided.
+- Output files use mode `0644` and directories `0755`. Chat history may be
+  sensitive; `0600` and `0700` may be preferable.
+- Very long conversation names can exceed filesystem name limits and fail the
+  write.
+- The global Go standard prefers `testify`; the project currently uses the
+  standard library. Decide which applies and align `agents/go.md`.
+- There is no CI workflow and no pinned `golangci-lint` configuration.
+
+## Build, Run, and Validate
 
 ```bash
-go build
-go run . -in aipro_chat_history_2026-06-29-1248.json -out out_markdown
+make build                 # build ./AIProJsonMD
+make run IN=export.json    # convert an export
+make all                   # fmt/check, vet, lint, race tests, build
+make test/cover            # tests with a coverage total
+make vuln                  # govulncheck
+npx --yes markdownlint-cli2 '**/*.md' '#.git/**' '#out_markdown/**'
 ```
-
-Observed generated folders include:
-
-- `out_markdown/Bash Projects/`
-- `out_markdown/General Research/`
-- `out_markdown/GoLang Projects/`
-- `out_markdown/Jenkins Diagnostics/`
-- `out_markdown/Jenkins Projects/`
-- `out_markdown/Javascript Bookmarklets/`
-- `out_markdown/Unfiled/`
-
-Observed extracted files include:
-
-- `out_markdown/Unfiled/assets/consoleText.txt`
-- `out_markdown/Unfiled/assets/tls_inventory.json`
-- `out_markdown/Unfiled/assets/aipro_chat_history_2026-06-29-1232.json`
-- `out_markdown/Unfiled/assets/TIO_All_Hands_20260610.txt`
-
-Those extracted files are currently under `Unfiled` because the source conversations in the sample export have `folderId: null`.
-
-## About AGENTS.md
-
-An `AGENTS.md` file is not currently necessary for this repository. The project is small, has one executable entry point, and the build and runtime expectations are covered by `README.md` and this document.
