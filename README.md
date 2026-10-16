@@ -19,7 +19,7 @@
 
 - Go 1.26 or newer
 - One Go module dependency, `github.com/yuin/goldmark`, fetched automatically by `go build`
-- Optional, for `make lint` and `make vuln`: `golangci-lint` and `govulncheck`
+- Optional, for `make lint`, `make lint/shell`, and `make vuln`: `golangci-lint`, `shellcheck`, and `govulncheck`
 
 ## Build
 
@@ -195,10 +195,11 @@ All links are relative, so the output directory can be moved, zipped, or opened 
 ## Development
 
 ```bash
-make all         # format check, vet, golangci-lint, race tests, build
+make all         # format check, vet, golangci-lint, shellcheck, race tests, build
 make test        # unit tests
 make test/cover  # tests with a coverage total
 make vuln        # pinned govulncheck (set GOVULNCHECK_VERSION to change)
+make changelog/status  # PR number, merge time, and commits of each changelog entry, read from git
 make help        # list every target
 ```
 
@@ -216,6 +217,7 @@ real chat history is needed.
   interfaces, exact behavior, architecture, security model, build and test
   plan, and decisions. This README summarizes it.
 - [HANDOFF.md](HANDOFF.md) lists outstanding work and how to resume it.
-- [CHANGELOG.md](CHANGELOG.md) records every branch and pull request, what it
-  did, when, and by whom.
+- [CHANGELOG.md](CHANGELOG.md) records every branch, what it did, and by whom.
+  Pull request numbers, merge times, and commit times are read from git with
+  `make changelog/status` instead of being stored in the file.
 - Agent guidance lives in [AGENTS.md](AGENTS.md).

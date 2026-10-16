@@ -10,15 +10,16 @@ GOVULNCHECK_VERSION ?= v1.9.0
 OUT_DIR ?= out_markdown
 ASSETS_DIR ?= assets
 FORMAT ?= md
+CHANGELOG_REF ?= main
 
 .DEFAULT_GOAL := help
-.PHONY: help default all deps fmt fmt/check vet lint test test/race test/cover vuln build install run clean
+.PHONY: help default all deps fmt fmt/check vet lint lint/shell test test/race test/cover vuln build install run clean changelog/status
 
 ## Build the binary (alias for build)
 default: build
 
-## Run the full local pipeline: format check, vet, lint, race tests, build
-all: fmt/check vet lint test/race build
+## Run the full local pipeline: format check, vet, lint, shell lint, race tests, build
+all: fmt/check vet lint lint/shell test/race build
 
 ## Download and verify module dependencies
 deps:
@@ -40,6 +41,15 @@ vet:
 ## Run golangci-lint
 lint:
 	golangci-lint run ./...
+
+## Lint the shell scripts in scripts/ with shellcheck
+lint/shell:
+	@command -v shellcheck >/dev/null || { echo "shellcheck is not installed" >&2; exit 1; }
+	shellcheck scripts/*.sh
+
+## Show the PR number, merge time, and commits of each CHANGELOG.md entry, read from git (CHANGELOG_REF=main)
+changelog/status:
+	@scripts/changelog-status.sh -r "$(CHANGELOG_REF)" -t
 
 ## Run unit tests
 test: deps

@@ -30,8 +30,9 @@ Three living documents describe the project. Their rules are in
 - Change behavior in `ENGINEERING.md` in the same change set as the code.
   `spec_test.go` fails if the specification's literal templates, script, or
   versions drift from the code.
-- At the end of a session update `HANDOFF.md`, and keep the `CHANGELOG.md`
-  entry for the branch current.
+- Write the `CHANGELOG.md` entry and update `HANDOFF.md` in the branch, in the
+  same pull request as the work. They hold no pull request numbers, merge
+  times, or commit ids: run `make changelog/status` to read those from git.
 
 ## General Behavior
 
