@@ -2,7 +2,7 @@
 
 - Status: current. This file is the primary specification of `AIProJsonMD`. The
   code, `README.md`, and every other document must agree with it.
-- Last reviewed against the code: 2026-10-16, commit `590c032`.
+- Last reviewed against the code: 2026-10-16, commit `0a37544`.
 - Related files: [HANDOFF.md](HANDOFF.md) (outstanding work),
   [CHANGELOG.md](CHANGELOG.md) (history of all work), [README.md](README.md)
   (user guide), and [AGENTS.md](AGENTS.md) (agent guidance).

@@ -10,27 +10,28 @@ Last updated: 2026-10-16 (UTC), by Claude Sonnet 5.5 via Claude Code.
 
 ## 1. Status
 
-- Default branch `main` is at `590c032` (PR #19 merged). Build, tests, lint,
-  vulnerability scan, and Markdown lint pass locally (`make all`, `make vuln`),
-  and CI passed on `main`.
-- Work in progress: branch `docs/spec-handoff-changelog` (section 3). It has
-  uncommitted changes in this checkout and is not pushed.
-- Statement coverage is about 89.8%. The program has no known failing behavior.
+- Default branch `main` is at `0a37544` (PR #20 merged 2026-10-16T17:45:59Z).
+  Build, tests, lint, vulnerability scan, and Markdown lint pass (`make all`,
+  `make vuln`), and CI passed on the PR.
+- Work in progress: branch `docs/changelog-pr20-merged`, a documentation-only
+  correction (section 3).
+- Statement coverage is about 90.7%. The program has no known failing behavior.
 
 ## 2. Resume here
 
-1. `cd ~/dev/AIProJsonMD && git switch docs/spec-handoff-changelog && git status`.
+1. `cd ~/dev/AIProJsonMD && git switch main && git pull` (or, if the correction
+   in section 3 is still open, `git switch docs/changelog-pr20-merged`).
 2. Run `make all` and confirm it passes (it includes `spec_test.go`).
-3. Finish the branch (section 3), then ask Byron to push it:
-   `git push -u origin docs/spec-handoff-changelog`, and open the PR against
+3. If the correction in section 3 is not merged yet, ask Byron to push it
+   (`git push -u origin docs/changelog-pr20-merged`) and open the PR against
    `main` with `SSL_CERT_FILE="" CGO_ENABLED=1 gh pr create ...` (see section 7).
-4. After that, take the highest-priority open item in section 4.
+4. Then take the highest-priority open item in section 4.
 
 ## 3. In progress
 
 | Item | State | What is left |
 | --- | --- | --- |
-| Branch `docs/spec-handoff-changelog` | Committed locally (`2bbae52` plus a changelog-finalizing commit), not pushed, no PR. Contains the rewritten `ENGINEERING.md`, new `HANDOFF.md` and `CHANGELOG.md`, `spec_test.go`, `run_test.go`, and updates to `AGENTS.md`, `README.md`, `agents/coding.md`. | Byron pushes it (`git push -u origin docs/spec-handoff-changelog`); the agent then opens the PR against `main`. After it merges, remove this row, move its `CHANGELOG.md` status to merged with the merge time, and update the "Status" section above. |
+| Branch `docs/changelog-pr20-merged` | Documentation only: records PR #20 as merged in `CHANGELOG.md`, updates this file, and the "last reviewed" commit in `ENGINEERING.md`. Committed locally once the agent finishes; not pushed, no PR. | Byron pushes it (`git push -u origin docs/changelog-pr20-merged`); the agent opens the PR against `main`. After it merges, remove this row and set the entry's status and merge time in `CHANGELOG.md` (in the same PR if possible, otherwise a one-line follow-up). |
 | Global standard `~/.claude/agents/coding.md` | Edited in Byron's working tree, uncommitted, in the `ByronScottJones/agents` repository. Contains two changes: consistent `AGENTS.md` spelling, and the new "Project Specification, Handoff, and Changelog" section. | Byron reviews (`git -C ~/.claude/agents diff`) and publishes through his usual pull request flow. The project copy `agents/coding.md` must stay byte-identical to it. |
 
 ## 4. Outstanding work
@@ -124,6 +125,11 @@ the changelog.
   (the remote is SSH). The agent opens pull requests afterwards with
   `SSL_CERT_FILE="" CGO_ENABLED=1 gh pr create ...`, run with the sandbox
   disabled. Verify a push with `gh api repos/<owner>/<repo>/branches/<branch>`.
+- Record a branch's PR number and merged status in its `CHANGELOG.md` entry
+  before the PR is merged: push any follow-up commit before merging, or accept
+  that the correction is a small follow-up PR. PR #20 merged before its
+  follow-up commit was pushed, so `main`'s changelog was stale until the
+  correction in section 3. Ask Byron to push the follow-up before merging.
 - A stacked pull request retargets to `main` only when its base branch is
   deleted. Merge the base PR, delete its branch, and confirm the next PR's base
   is `main` before merging it, then confirm the change is on `main`
@@ -149,8 +155,6 @@ Byron deletes them (`rm -rf` is run by Byron):
 
 - The scratch directory
   `/private/tmp/claude-502/-Users-jonesb7-dev-AIProJsonMD/31cfadf1-3cd9-40a9-a0b8-28d513e0ff42/scratchpad/nav.4T13CV`.
-- Screenshots in `~/.uictl/screenshots/` named `20261016T16-22-32.png`,
-  `20261016T16-22-43.png`, `20261016T16-22-52.png`, `20261016T16-25-28.png`,
-  `20261016T16-37-45.png`, `20261016T16-37-57.png`, `20261016T16-38-08.png`.
-- Local branches other than `main` that are merged can be deleted with
-  `git branch -d`; the remote has only `main`.
+- Merged local branches can be deleted with `git branch -d`; the remote has only
+  `main`. The earlier session screenshots in `~/.uictl/screenshots/` were
+  deleted by Byron.

@@ -175,6 +175,10 @@ proceeds, and finalize it before the pull request is opened. Use this template:
   ran in, for example "Claude Sonnet 5.5, via Claude Code". Write "not recorded"
   rather than guessing, and credit tools such as Copilot Autofix when a commit
   trailer shows them.
+- Put the pull request number, the final commit range, and the merged status in
+  the entry before the pull request is merged: push the follow-up commit first.
+  A merge that outruns the entry leaves the changelog wrong, so if it happens,
+  correct the entry at once in a small pull request.
 - Never record secrets, and do not copy private data into an entry.
 - Correct an entry by amending it with a dated note, not by silently rewriting
   what happened.
