@@ -47,7 +47,7 @@ errors are logged to stderr, and a fatal error exits with status 1.
 
 - `-in`: path to the input JSON export file. Required.
 - `-out`: directory for generated Markdown files. Default: `out_markdown`
-- `-assets`: name of the per-folder assets directory created inside each output folder. Default: `assets`
+- `-assets`: name of the per-folder assets directory created inside each output folder. Default: `assets`. Must be a single directory name: empty values, `.`, `..`, and anything containing a path separator are rejected.
 - `-overwrite`: overwrite existing markdown and attachment files. Default: `false`
 
 ## Expected Input Shape
@@ -142,6 +142,8 @@ out_markdown/
 - If an attachment reference exists in a conversation but no matching file blob is found, the Markdown output notes the missing attachment.
 
 - Attachment links are URL-escaped, so names with spaces or parentheses still resolve.
+- Output is private to your user: new files are created with mode `0600` and new directories with `0700`, because chat history can be sensitive. Existing files and directories keep their current permissions.
+- File and folder names are capped at 200 bytes, keeping the extension, so very long conversation names do not fail the write.
 - The summary line reports how many Markdown files were actually written. Files skipped because they already exist are not counted.
 
 ## Development
@@ -150,6 +152,7 @@ out_markdown/
 make all         # format check, vet, golangci-lint, race tests, build
 make test        # unit tests
 make test/cover  # tests with a coverage total
+make vuln        # pinned govulncheck (set GOVULNCHECK_VERSION to change)
 make help        # list every target
 ```
 

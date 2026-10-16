@@ -6,6 +6,7 @@
 APP_NAME ?= AIProJsonMD
 GO ?= go
 GOFLAGS ?=
+GOVULNCHECK_VERSION ?= v1.9.0
 OUT_DIR ?= out_markdown
 ASSETS_DIR ?= assets
 
@@ -52,9 +53,9 @@ test/cover: deps
 	$(GO) test -coverprofile=coverage.out ./...
 	$(GO) tool cover -func=coverage.out | tail -1
 
-## Scan dependencies and the standard library with govulncheck
+## Scan dependencies and the standard library with a pinned govulncheck (GOVULNCHECK_VERSION)
 vuln:
-	govulncheck ./...
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
 
 ## Build the binary
 build: deps

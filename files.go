@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -20,10 +22,53 @@ var (
 	ErrEmptyBase64 = errors.New("empty base64 payload")
 	// ErrNoPayload is returned when an attachment has neither text content nor image data.
 	ErrNoPayload = errors.New("no attachment payload found")
+	// ErrInvalidAssetsDir is returned when -assets is not a single directory name.
+	ErrInvalidAssetsDir = errors.New("invalid -assets value: must be a single directory name")
+)
+
+const (
+	// filePerm and dirPerm keep exported chat history private to the current user.
+	// They apply only to files and directories this tool creates.
+	filePerm fs.FileMode = 0o600
+	dirPerm  fs.FileMode = 0o700
+
+	// maxNameBytes caps a sanitized file or folder name, leaving room for the
+	// ".md" extension and "_N" collision suffixes under the common 255-byte limit.
+	maxNameBytes = 200
 )
 
 // invalidFilenameChars matches characters that are unsafe in file names on common filesystems.
 var invalidFilenameChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1F]`)
+
+// validateAssetsDir reports whether name is usable as the per-folder assets
+// directory: a single, non-empty path element that cannot escape its folder.
+func validateAssetsDir(name string) error {
+	if strings.TrimSpace(name) == "" || name == "." || name == ".." ||
+		strings.ContainsAny(name, `/\`) || strings.ContainsFunc(name, unicode.IsControl) {
+		return fmt.Errorf("%w: %q", ErrInvalidAssetsDir, name)
+	}
+	return nil
+}
+
+// truncateName shortens name to at most limit bytes without splitting a UTF-8
+// character, preserving a short file extension.
+func truncateName(name string, limit int) string {
+	if len(name) <= limit {
+		return name
+	}
+
+	ext := filepath.Ext(name)
+	if len(ext) > 16 || len(ext) >= limit {
+		ext = ""
+	}
+	base := strings.TrimSuffix(name, ext)
+
+	cut := limit - len(ext)
+	for cut > 0 && !utf8.RuneStart(base[cut]) {
+		cut--
+	}
+	return strings.TrimRight(base[:cut], ". ") + ext
+}
 
 // shortHashFromString returns the first n hex characters of the SHA-256 of s.
 func shortHashFromString(s string, n int) string {
@@ -42,20 +87,20 @@ func sanitizeFilename(s string) string {
 		return ""
 	}
 	s = invalidFilenameChars.ReplaceAllString(s, "_")
-	return strings.Trim(s, ".")
+	return truncateName(strings.Trim(s, "."), maxNameBytes)
 }
 
 // writeFile writes data to path and reports whether the file was written.
 // Without overwrite, an existing file is left untouched and written is false.
 func writeFile(path string, data []byte, overwrite bool) (written bool, err error) {
 	if overwrite {
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := os.WriteFile(path, data, filePerm); err != nil {
 			return false, fmt.Errorf("write %q: %w", path, err)
 		}
 		return true, nil
 	}
 
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, filePerm)
 	if errors.Is(err, fs.ErrExist) {
 		return false, nil
 	}

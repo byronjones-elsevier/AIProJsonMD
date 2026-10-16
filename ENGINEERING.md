@@ -86,9 +86,27 @@ stop the run; they are written into the Markdown as a note and logged with
   check-then-write race. `-overwrite` replaces them.
 - **Fail fast on fatal errors, degrade on attachments.** Rejected: collecting
   every error into a summary, which adds complexity for a one-shot tool.
-- **Standard library `testing`, not testify.** Matches the project copy of
-  `agents/go.md` and the original tests. The global standard prefers testify;
-  see Remaining Risks.
+- **Standard library `testing`, not testify.** Decided deliberately: the
+  project has no third-party dependencies, so there is no `go.sum` and almost
+  nothing for `govulncheck` to scan beyond the standard library. The suite is
+  table-driven and readable without assertion helpers. This is an intentional
+  project-level override of the global `testify` preference. Rejected: adding
+  `testify`, which would add the first dependency and rewrite about 60
+  assertions for little gain.
+- **`-assets` must be a single directory name.** Empty, `.`, `..`, absolute
+  paths, path separators, and control characters are rejected with
+  `ErrInvalidAssetsDir`. Rejected: allowing nested relative paths, which needs
+  containment checks and complicates link generation with no known use.
+- **Private output.** Files are created with mode `0600` and directories with
+  `0700`, because chat history can be sensitive. This applies only to what the
+  tool creates; existing files keep their mode (an existing file replaced with
+  `-overwrite` keeps its current mode).
+- **Names are capped at 200 bytes.** `sanitizeFilename` truncates on a UTF-8
+  boundary and keeps a short file extension, leaving room for `.md` and `_N`
+  suffixes under the 255-byte filesystem limit.
+- **Pinned `govulncheck`.** `make vuln` runs
+  `go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)` (currently
+  `v1.9.0`) so nothing is installed globally and the version is reproducible.
 - **No `context.Context` parameters.** The tool does short, local file I/O
   with no cancellable work, so there is nothing to propagate.
 
@@ -99,12 +117,22 @@ Checked on 2026-10-16 with Go 1.27.1 on macOS:
 - `gofmt -l .` reports nothing.
 - `go vet ./...` is clean.
 - `golangci-lint run ./...` reports 0 issues (default linters).
-- `go test -race -cover ./...` passes with 89% statement coverage.
+- `go test -race -cover ./...` passes with 89.7% statement coverage.
 - `make help`, `make all`, `make test/cover`, `make clean`, and the `make run`
   guard without `IN` behave as documented.
 - `run` end to end on a synthetic export: folders, `Unfiled`, duplicate names,
-  a missing blob, an image attachment, names with spaces and parentheses, and
-  the overwrite and no-overwrite paths.
+  a missing blob, an image attachment, names with spaces and parentheses, the
+  overwrite and no-overwrite paths, rejected `-assets` values, and the
+  `0600`/`0700` output modes.
+- `make vuln` (`govulncheck v1.9.0`) runs. It reports 4 standard-library
+  vulnerabilities in Go 1.27.1 (GO-2026-6603, -6611, -6613, -6617), all in
+  `net/http` server and HTTP/2 code and all fixed in Go 1.27.2. The tool only
+  calls `http.DetectContentType` and never starts an HTTP server or client, so
+  the reported traces go through `init` and `io.Writer` dispatch rather than
+  real HTTP use. Upgrading the toolchain to 1.27.2 or later clears them.
+  The scan also lists 7 findings in imported standard-library packages and 2 in
+  required modules that the code does not call. There are no third-party
+  dependencies.
 - Output of the pre-refactor build (from `main`) and the refactored build,
   both run on a real export of 40 conversations and diffed. The file trees
   matched (47 files each). One Markdown file differed: three attachment links
@@ -113,21 +141,23 @@ Checked on 2026-10-16 with Go 1.27.1 on macOS:
 
 Not exercised:
 
-- `govulncheck` (not installed on the development machine) and `make install`.
+- `make install`.
 - Windows. Filename sanitizing covers its reserved characters but not reserved
-  names such as `CON`.
+  names such as `CON`, and the permission test is skipped there.
+- A real-export run after the 0600/0700 and name-cap changes. Names under
+  200 bytes are unaffected, so output content should match the earlier
+  comparison, but it was not diffed again.
 
 ## Remaining Risks and Possible Work
 
-- `-assets` is joined into the output path without validation, so a value such
-  as `../x` writes outside the output folder. The accepted validation rule has
-  not been decided.
-- Output files use mode `0644` and directories `0755`. Chat history may be
-  sensitive; `0600` and `0700` may be preferable.
-- Very long conversation names can exceed filesystem name limits and fail the
-  write.
-- The global Go standard prefers `testify`; the project currently uses the
-  standard library. Decide which applies and align `agents/go.md`.
+- The development toolchain (Go 1.27.1) has the four standard-library
+  vulnerabilities listed under Verified. Upgrade to Go 1.27.2 or later, or add
+  a `toolchain` line to `go.mod`, to clear `make vuln`. Avoiding the
+  `net/http` import (it is used only for `http.DetectContentType`) would also
+  remove them from the binary but needs a hand-written image sniffer.
+- `make vuln` exits non-zero while those findings stand, so it is deliberately
+  not part of `make all`.
+- Windows reserved file names (`CON`, `NUL`, ...) are not handled.
 - There is no CI workflow and no pinned `golangci-lint` configuration.
 
 ## Build, Run, and Validate
